@@ -595,13 +595,13 @@
                         {/* 總結與評價區塊 */}
                         <section className="bg-slate-900 rounded-[3rem] p-10 space-y-8 text-white shadow-2xl relative overflow-hidden border-t-8 border-red-600 text-center">
                             <div className="space-y-4 relative text-left">
-                                <label className="text-[10px] font-black text-slate-300 uppercase tracking-widest italic uppercase italic tracking-widest">總結</label>
-                                <textarea className="w-full bg-slate-800 border border-slate-700 rounded-3xl p-6 text-sm font-bold text-white min-h-[160px] outline-none focus:border-red-500 placeholder-slate-500 shadow-inner leading-relaxed" placeholder="請手動輸入對該門店的觀察與改進建議..." value={formData.overallComment} onChange={e => setFormData({...formData, overallComment: e.target.value})} />
+                                <label className="text-[10px] font-black text-slate-1000 uppercase tracking-widest italic uppercase italic tracking-widest">總結</label>
+                                <textarea className="w-full bg-slate-800 border border-slate-700 rounded-3xl p-6 text-sm font-bold text-white min-h-[160px] outline-none focus:border-red-500 placeholder-slate-500 shadow-inner leading-relaxed" placeholder="請輸入對該分店的觀察與改進建議..." value={formData.overallComment} onChange={e => setFormData({...formData, overallComment: e.target.value})} />
                             </div>
                             
                             <div className="space-y-2 relative">
-                                <h2 className="font-black text-[10px] text-slate-400 uppercase tracking-[0.3em] italic">本月評價</h2>
-                                <select className={`bg-transparent text-7xl font-black outline-none appearance-none text-center w-full cursor-pointer italic ${getGradeColor(formData.overallScore)} transition-colors`} value={formData.overallScore} onChange={e => setFormData({...formData, overallScore: e.target.value})}>
+                                <h2 className="font-black text-[10px] text-slate-1000 uppercase tracking-[0.3em] italic">本月評價</h2>
+                                <select className={`bg-transparent text-[96px] font-black outline-none appearance-none text-center w-full cursor-pointer italic ${getGradeColor(formData.overallScore)} transition-colors`} value={formData.overallScore} onChange={e => setFormData({...formData, overallScore: e.target.value})}>
                                     {GRADES.map(g => <option key={g} value={g} className="bg-slate-800 text-white">{g}</option>)}
                                 </select>
                             </div>
@@ -619,6 +619,7 @@
     </script>
 </body>
 </html>
+
 
 
 
