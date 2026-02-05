@@ -461,7 +461,7 @@
                                     <h3 className="font-black text-slate-900 text-sm uppercase tracking-widest border-l-4 border-green-400 pl-3 italic">巡檢評核細項</h3>
                                     {recCategories.map(cat => (
                                         <div key={cat} className="space-y-3 avoid-break">
-                                            <h3 className="font-black text-Indigo-600 text-[10px] uppercase tracking-widest border-b pb-2">{String(cat)}</h3>
+                                            <h3 className="font-black text-red-600 text-[10px] uppercase tracking-widest border-b pb-2">{String(cat)}</h3>
                                             <div className="divide-y">{(r.activeChecklist || []).filter(i => i.category === cat).map((item, idx) => (
                                                 <div key={idx} className="py-3 flex justify-between items-center gap-4"><span className="text-sm font-bold text-slate-700 break-words pr-2">{String(item.item)}</span><span className={`text-[10px] font-black px-4 py-1 rounded-full border shrink-0 ${getReportBadgeClass(item.status)}`}>{String(item.status)}</span></div>
                                             ))}</div>
@@ -515,7 +515,7 @@
                             <div className="flex justify-between items-center">
                                 <h2 className="font-black text-xs uppercase tracking-widest text-orange-600 flex items-center gap-2 italic uppercase">● 前期改善追蹤</h2>
                                 {formData.prevImprovements.length > 0 && (
-                                    <span className="text-[10px] font-bold bg-orange-200 text-orange-700 px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-sm">Auto-Linked</span>
+                                    <span className="text-[10px] font-bold bg-orange-200 text-orange-700 px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-sm">(只要未改善就會持續保留)</span>
                                 )}
                             </div>
                             <div className="flex gap-2">
@@ -619,6 +619,7 @@
     </script>
 </body>
 </html>
+
 
 
 
