@@ -452,14 +452,14 @@
                                     
                                     <div className="bg-blue-50 border-l-4 border-blue-600 p-8 space-y-3 text-slate-700 shadow-inner avoid-break">
                                         <h3 className="font-black text-blue-900 text-xs uppercase tracking-widest italic opacity-60 uppercase italic">Supervisor Summary</h3>
-                                        <h3 className="font-black text-blue-900 text-lg uppercase tracking-widest">督導總結建議</h3>
+                                        <h3 className="font-black text-blue-900 text-lg uppercase tracking-widest">督導總結</h3>
                                         <p className="leading-relaxed font-bold italic break-words whitespace-pre-wrap mt-2 text-base">{String(r.overallComment || "當次巡訪狀況優良，無特殊待改進項目。")}</p>
                                     </div>
                                 </div>
 
                                 {/* --- 第三頁：巡檢評核細項 --- */}
                                 <div className="page-break pt-10 space-y-8">
-                                    <h3 className="font-black text-slate-900 text-xs tracking-widest uppercase border-b pb-2 italic opacity-60 uppercase">Evaluation Details / 巡檢評核細項</h3>
+                                    <h3 className="font-black text-slate-900 text-sm uppercase tracking-widest border-l-4 border-green-400 pl-3 italic">巡檢評核細項</h3>
                                     {recCategories.map(cat => (
                                         <div key={cat} className="space-y-3 avoid-break">
                                             <h3 className="font-black text-slate-400 text-[10px] uppercase tracking-widest border-b pb-2">{String(cat)}</h3>
@@ -500,7 +500,7 @@
                         {/* 基本資訊 */}
                         <section className="bg-white rounded-[2.5rem] p-6 sm:p-8 shadow-sm border border-slate-200 space-y-6">
                             <div className="space-y-4">
-                                <div className="flex items-center gap-2 px-1 text-[10px] font-black text-slate-400 uppercase tracking-widest border-l-2 border-blue-500 pl-2 uppercase italic">Store Information</div>
+                                <div className="flex items-center gap-2 px-1 text-[10px] font-black text-slate-400 uppercase tracking-widest border-l-2 border-blue-500 pl-2 uppercase italic">巡視分店資訊</div>
                                 <div className="grid grid-cols-2 gap-3">
                                     <select className="col-span-2 bg-slate-50 border-none rounded-2xl p-4 font-black text-sm outline-none cursor-pointer shadow-inner" value={formData.storeName} onChange={e => setFormData({...formData, storeName: e.target.value})}>
                                         {stores.map(s => <option key={s} value={s}>{s}</option>)}
@@ -514,7 +514,7 @@
                         {/* 上期缺失追蹤 */}
                         <section className="bg-orange-50 rounded-[2.5rem] p-6 sm:p-8 shadow-sm border border-orange-100 space-y-6 overflow-hidden">
                             <div className="flex justify-between items-center">
-                                <h2 className="font-black text-xs uppercase tracking-widest text-orange-600 flex items-center gap-2 italic uppercase">● Previous Point</h2>
+                                <h2 className="font-black text-xs uppercase tracking-widest text-orange-600 flex items-center gap-2 italic uppercase">● 前期改善追蹤</h2>
                                 {formData.prevImprovements.length > 0 && (
                                     <span className="text-[10px] font-bold bg-orange-200 text-orange-700 px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-sm">Auto-Linked</span>
                                 )}
@@ -563,7 +563,7 @@
                         ))}
 
                         <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200 space-y-6 overflow-hidden">
-                            <div className="flex justify-between items-center"><h2 className="font-black text-xs uppercase text-slate-400 flex items-center gap-2 italic uppercase tracking-widest">● Point of Deficiency</h2></div>
+                            <div className="flex justify-between items-center"><h2 className="font-black text-xs uppercase text-slate-400 flex items-center gap-2 italic uppercase tracking-widest">● 本月缺失及建議</h2></div>
                             <textarea className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-bold min-h-[100px] outline-none shadow-inner focus:ring-1 focus:ring-blue-500" placeholder="輸入現場缺失內容，點選下方按鈕加入清單..." value={rawInput} onChange={e => setRawInput(e.target.value)} />
                             <div className="flex flex-wrap gap-2">
                                 <button onClick={() => addDeficiency('suggest')} className="flex-1 min-w-[120px] bg-blue-100 text-blue-600 py-3 rounded-xl font-black text-xs active:scale-95 border border-blue-200 hover:bg-blue-200 transition-colors uppercase italic shadow-sm">＋ 建議項目</button>
@@ -583,7 +583,7 @@
                         </section>
 
                         <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200 space-y-4 text-slate-400 font-bold italic">
-                            <div className="flex justify-between items-center"><h2 className="font-black text-[10px] uppercase tracking-widest italic uppercase">● Photo Gallery</h2><label className="bg-slate-900 text-white px-4 py-2 rounded-xl text-[10px] font-black cursor-pointer shadow-md active:scale-95 hover:bg-slate-800 transition-colors uppercase">拍照 / 上傳<input type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoUpload} /></label></div>
+                            <div className="flex justify-between items-center"><h2 className="font-black text-[10px] uppercase tracking-widest italic uppercase">● 現場缺失照片</h2><label className="bg-slate-900 text-white px-4 py-2 rounded-xl text-[10px] font-black cursor-pointer shadow-md active:scale-95 hover:bg-slate-800 transition-colors uppercase">拍照 / 上傳<input type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoUpload} /></label></div>
                             {formData.photos.length > 0 ? (
                                 <div className="grid grid-cols-3 gap-2 pt-2">
                                     {formData.photos.map((p, i) => (
@@ -596,12 +596,12 @@
                         {/* 總結與評價區塊 */}
                         <section className="bg-slate-900 rounded-[3rem] p-10 space-y-8 text-white shadow-2xl relative overflow-hidden border-t-8 border-red-600 text-center">
                             <div className="space-y-4 relative text-left">
-                                <label className="text-[10px] font-black text-slate-300 uppercase tracking-widest italic uppercase italic tracking-widest">Final Summary</label>
+                                <label className="text-[10px] font-black text-slate-300 uppercase tracking-widest italic uppercase italic tracking-widest">總結</label>
                                 <textarea className="w-full bg-slate-800 border border-slate-700 rounded-3xl p-6 text-sm font-bold text-white min-h-[160px] outline-none focus:border-red-500 placeholder-slate-500 shadow-inner leading-relaxed" placeholder="請手動輸入對該門店的觀察與改進建議..." value={formData.overallComment} onChange={e => setFormData({...formData, overallComment: e.target.value})} />
                             </div>
                             
                             <div className="space-y-2 relative">
-                                <h2 className="font-black text-[10px] text-slate-400 uppercase tracking-[0.3em] italic">Overall Grade</h2>
+                                <h2 className="font-black text-[10px] text-slate-400 uppercase tracking-[0.3em] italic">本月評價</h2>
                                 <select className={`bg-transparent text-7xl font-black outline-none appearance-none text-center w-full cursor-pointer italic ${getGradeColor(formData.overallScore)} transition-colors`} value={formData.overallScore} onChange={e => setFormData({...formData, overallScore: e.target.value})}>
                                     {GRADES.map(g => <option key={g} value={g} className="bg-slate-800 text-white">{g}</option>)}
                                 </select>
@@ -620,3 +620,4 @@
     </script>
 </body>
 </html>
+
