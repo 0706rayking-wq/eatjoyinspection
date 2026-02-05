@@ -192,13 +192,50 @@
                 }
             }, [stores, checklistTemplate, view]);
 
+            // --- ✨ 自動帶入上期缺失邏輯（升級版：包含所有未改善項） ✨ ---
+            useEffect(() => {
+                if (view === 'form' && formData.storeName && historyRecords.length > 0) {
+                    // 找出該店最近的一筆紀錄
+                    const lastRecord = historyRecords.find(r => r.storeName === formData.storeName);
+                    
+                    if (lastRecord) {
+                        // 1. 上次巡檢時「新發現」的缺失 (currentDeficiencies)
+                        const newTasksFromLastTime = (lastRecord.currentDeficiencies || []).map(def => ({
+                            id: def.id + "_new_carry", 
+                            task: def.task,
+                            status: 'pending' 
+                        }));
+
+                        // 2. 上次巡檢中「仍未改善」的追蹤項 (prevImprovements)
+                        const unresolvedTasksFromLastTime = (lastRecord.prevImprovements || [])
+                            .filter(item => item.status === 'pending')
+                            .map(item => ({
+                                ...item,
+                                id: item.id + "_pending_carry" // 更新 ID 防止衝突但保留內容
+                            }));
+
+                        // 合併兩者，形成本次巡檢的「上期缺失追蹤」
+                        const combinedTasks = [...unresolvedTasksFromLastTime, ...newTasksFromLastTime];
+                        
+                        setFormData(prev => ({
+                            ...prev,
+                            prevImprovements: combinedTasks
+                        }));
+                    } else {
+                        // 如果該店沒有任何歷史紀錄，清空清單
+                        setFormData(prev => ({ ...prev, prevImprovements: [] }));
+                    }
+                }
+            }, [formData.storeName, historyRecords.length, view]);
+
             // --- 邏輯函數 ---
             const handleSaveInspection = async () => {
                 if (!user || !db) return;
                 if (!formData.supervisor) return showMsg("請填寫主管姓名");
                 try {
                     const docRef = await window.FB.addDoc(window.FB.collection(db, 'artifacts', appId, 'public', 'data', 'history'), { ...formData, createdAt: new Date().toISOString() });
-                    setSelectedRecord({ ...formData, id: docRef.id });
+                    const savedData = { ...formData, id: docRef.id };
+                    setSelectedRecord(savedData);
                     setView('report');
                     window.scrollTo(0,0);
                     showMsg("紀錄已成功儲存至雲端");
@@ -243,7 +280,7 @@
 
             const MessageBox = () => messageBox.show && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6 no-print text-slate-900">
-                    <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl space-y-6">
+                    <div className="bg-white rounded-3xl p-8 max-sm w-full shadow-2xl space-y-6">
                         <p className="text-center font-bold text-slate-700 leading-relaxed break-words">{messageBox.text}</p>
                         <button onClick={() => setMessageBox({ show: false, text: '', onConfirm: null })} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black active:scale-95 transition-all text-sm uppercase italic">確定</button>
                     </div>
@@ -271,7 +308,7 @@
                 <div className="min-h-screen bg-slate-50 pb-20 text-slate-900">
                     <nav className="bg-slate-900 text-white p-5 sticky top-0 z-50 flex justify-between items-center shadow-xl">
                         <div className="font-black text-xl italic text-red-500 uppercase tracking-tighter">系統設定</div>
-                        <button onClick={() => setView('form')} className="bg-blue-600 px-6 py-2 rounded-xl font-bold text-sm">返回首頁</button>
+                        <button onClick={() => setView('form')} className="bg-blue-600 px-6 py-2 rounded-xl font-bold text-sm text-white">返回首頁</button>
                     </nav>
                     <div className="max-w-xl mx-auto p-4 space-y-8 mt-6">
                         {/* 門店管理 */}
@@ -334,7 +371,7 @@
                 <div className="min-h-screen bg-slate-50 pb-24 text-slate-900">
                     <nav className="bg-slate-900 text-white p-5 sticky top-0 z-50 flex justify-between items-center shadow-xl">
                         <div className="text-blue-400 font-black text-xl italic uppercase tracking-widest">歷史紀錄</div>
-                        <button onClick={() => setView('form')} className="bg-slate-800 px-5 py-2 rounded-xl text-sm font-bold">返回首頁</button>
+                        <button onClick={() => setView('form')} className="bg-slate-800 px-5 py-2 rounded-xl text-sm font-bold text-white">返回首頁</button>
                     </nav>
                     <div className="max-w-2xl mx-auto p-4 space-y-4 mt-4">
                         {historyRecords.length === 0 ? <div className="text-center py-20 text-slate-300 font-bold border-2 border-dashed rounded-3xl uppercase italic tracking-widest">NO RECORDS</div> : historyRecords.map(r => (
@@ -347,9 +384,9 @@
                 </div>
             );
 
-            // 3. 報表視圖 (更新列印樣式：三頁分頁邏輯)
-            if (view === 'report' && selectedRecord) {
-                const r = selectedRecord;
+            // 3. 報表視圖
+            if (view === 'report') {
+                const r = selectedRecord || { ...formData, id: "PREVIEW-" + new Date().getTime() };
                 const recCategories = [...new Set((r.activeChecklist || []).map(i => i.category))];
                 const reportMonth = getMonthFromDate(r.date);
 
@@ -358,7 +395,6 @@
                         <MessageBox />
                         <div className="max-w-4xl mx-auto bg-white shadow-2xl overflow-hidden print:shadow-none text-slate-900 border-b-8 border-slate-900 print-shadow-none">
                             
-                            {/* --- 第一頁：分店標題與最終評價 (依照 image_139d99.png) --- */}
                             <div className="bg-white p-10 flex justify-between items-start border-b border-slate-100">
                                 <div className="flex-1 pr-6">
                                     <h1 className="text-5xl font-black italic text-slate-400 uppercase tracking-tighter mb-3 break-words leading-tight">
@@ -377,15 +413,14 @@
                                     </div>
                                     <div className="no-print mt-6 flex flex-wrap gap-2 justify-end">
                                         <button onClick={() => setView('form')} className="bg-slate-700 px-4 py-2 rounded-lg text-xs font-bold text-white uppercase shadow-md active:scale-95 transition-all">返回修改</button>
-                                        <button onClick={handleSaveInspection} className="bg-blue-500 px-4 py-2 rounded-lg text-xs font-bold text-white uppercase shadow-md active:scale-95 transition-all">儲存紀錄</button>
-                                        <button onClick={() => { setFormData(initialFormData); setView('form'); }} className="bg-slate-800 px-4 py-2 rounded-lg text-xs font-bold text-white uppercase shadow-md active:scale-95 transition-all">新巡檢</button>
+                                        {!selectedRecord && <button onClick={handleSaveInspection} className="bg-blue-500 px-4 py-2 rounded-lg text-xs font-bold text-white uppercase shadow-md active:scale-95 transition-all">儲存紀錄</button>}
+                                        <button onClick={() => { setSelectedRecord(null); setFormData(initialFormData); setView('form'); }} className="bg-slate-800 px-4 py-2 rounded-lg text-xs font-bold text-white uppercase shadow-md active:scale-95 transition-all">新巡檢</button>
                                         <button onClick={() => window.print()} className="bg-red-600 px-4 py-2 rounded-lg text-xs font-bold text-white flex items-center gap-2 uppercase font-black shadow-md active:scale-95 transition-all">列印報告</button>
                                     </div>
                                 </div>
                             </div>
 
                             <div className="p-10 space-y-12">
-                                {/* 第一頁主要內容區 */}
                                 <div className="grid grid-cols-2 md:grid-cols-4 border divide-x text-slate-700 shadow-sm rounded-lg overflow-hidden">
                                     <div className="p-4 bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">營運總監</div><div className="p-4 font-bold break-words">{String(r.supervisor)}</div>
                                     <div className="p-4 bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">當日值班</div><div className="p-4 font-bold break-words">{String(r.shiftStaff)}</div>
@@ -416,7 +451,6 @@
                                     </div>
                                 </div>
 
-                                {/* --- 第二頁：缺失圖片與總結建議 --- */}
                                 <div className="page-break pt-10 space-y-12">
                                     {r.photos?.length > 0 && (
                                         <div className="space-y-4 avoid-break">
@@ -434,7 +468,6 @@
                                     </div>
                                 </div>
 
-                                {/* --- 第三頁：巡檢評核細項 --- */}
                                 <div className="page-break pt-10 space-y-8">
                                     <h3 className="font-black text-slate-900 text-xs tracking-widest uppercase border-b pb-2 italic opacity-60 uppercase">Evaluation Details / 巡檢評核細項</h3>
                                     {recCategories.map(cat => (
@@ -459,7 +492,7 @@
                 );
             }
 
-            // 4. 主表單視圖 (優化手機版缺失追蹤排版)
+            // 4. 主表單視圖
             return (
                 <div className="min-h-screen bg-slate-100 pb-32 font-sans text-slate-900">
                     <MessageBox />
@@ -487,11 +520,16 @@
                             </div>
                         </section>
 
-                        {/* 上期缺失追蹤 */}
+                        {/* 上期缺失追蹤 - 自動帶入上期數據 */}
                         <section className="bg-orange-50 rounded-[2.5rem] p-6 sm:p-8 shadow-sm border border-orange-100 space-y-6 overflow-hidden">
-                            <h2 className="font-black text-xs uppercase tracking-widest text-orange-600 flex items-center gap-2">● 上期缺失追蹤</h2>
+                            <div className="flex justify-between items-center">
+                                <h2 className="font-black text-xs uppercase tracking-widest text-orange-600 flex items-center gap-2">● 上期缺失追蹤</h2>
+                                {formData.prevImprovements.length > 0 && (
+                                    <span className="text-[10px] font-bold bg-orange-200 text-orange-700 px-2 py-0.5 rounded-full uppercase tracking-tighter">Auto-Linked</span>
+                                )}
+                            </div>
                             <div className="flex gap-2">
-                                <input type="text" placeholder="新增追蹤項目..." className="flex-1 min-w-0 bg-white border-none rounded-2xl px-5 py-4 text-sm font-bold outline-none shadow-sm" value={prevTaskInput} onChange={e => setPrevTaskInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && addPrevTask()} />
+                                <input type="text" placeholder="手動新增追蹤項目..." className="flex-1 min-w-0 bg-white border-none rounded-2xl px-5 py-4 text-sm font-bold outline-none shadow-sm" value={prevTaskInput} onChange={e => setPrevTaskInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && addPrevTask()} />
                                 <button onClick={addPrevTask} className="bg-orange-500 text-white px-5 rounded-2xl shadow-lg font-black text-xl flex-shrink-0 active:scale-90 transition-transform">＋</button>
                             </div>
                             <div className="space-y-2 pt-2">
@@ -508,10 +546,13 @@
                                         </div>
                                     </div>
                                 ))}
+                                {formData.prevImprovements.length === 0 && (
+                                    <p className="text-center text-slate-400 text-xs italic py-2">該店暫無上期缺失紀錄</p>
+                                )}
                             </div>
                         </section>
 
-                        {/* 巡檢項目 - 優紅、差綠 */}
+                        {/* 巡檢項目 */}
                         {categories.map((cat) => (
                             <div key={cat} className="space-y-3">
                                 <h3 className="font-black text-slate-400 text-[10px] uppercase tracking-[0.3em] px-4 border-l-2 border-slate-300 ml-1">{cat}</h3>
@@ -565,7 +606,6 @@
                             ) : <div className="border-2 border-dashed border-slate-100 rounded-2xl p-8 text-center text-xs tracking-widest uppercase italic opacity-40">No Photos Attached</div>}
                         </section>
 
-                        {/* 總結與評價區塊 */}
                         <section className="bg-slate-900 rounded-[3rem] p-10 space-y-8 text-white shadow-2xl relative overflow-hidden border-t-8 border-red-600 text-center">
                             <div className="space-y-4 relative text-left">
                                 <label className="text-[10px] font-black text-slate-300 uppercase tracking-widest italic uppercase">Final Summary</label>
