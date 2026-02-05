@@ -305,6 +305,7 @@
                         <button onClick={() => setView('form')} className="bg-blue-600 px-6 py-2 rounded-xl font-bold text-sm text-white">返回首頁</button>
                     </nav>
                     <div className="max-w-xl mx-auto p-4 space-y-8 mt-6">
+                        {/* 門店管理 */}
                         <section className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
                             <h2 className="font-black text-slate-800 text-lg mb-4 text-blue-600">分店名單管理</h2>
                             <div className="flex flex-wrap gap-2 mb-4">
@@ -356,7 +357,7 @@
                 <div className="min-h-screen bg-slate-50 pb-24 text-slate-900">
                     <nav className="bg-slate-900 text-white p-5 sticky top-0 z-50 flex justify-between items-center shadow-xl">
                         <div className="text-blue-400 font-black text-xl italic uppercase tracking-widest">歷史紀錄</div>
-                        <button onClick={() => setView('form')} className="bg-slate-800 px-5 py-2 rounded-xl text-sm font-bold text-white">返回首頁</button>
+                        <button onClick={() => { setView('form'); window.scrollTo(0,0); }} className="bg-slate-800 px-5 py-2 rounded-xl text-sm font-bold text-white">返回首頁</button>
                     </nav>
                     <div className="max-w-2xl mx-auto p-4 space-y-4 mt-4">
                         {historyRecords.length === 0 ? <div className="text-center py-20 text-slate-300 font-bold border-2 border-dashed rounded-3xl uppercase italic tracking-widest">NO RECORDS</div> : historyRecords.map(r => (
@@ -398,9 +399,9 @@
                                         </div>
                                     </div>
                                     <div className="no-print mt-0 sm:mt-6 flex flex-wrap gap-2 justify-end">
-                                        <button onClick={() => setView('form')} className="bg-slate-700 px-3 sm:px-4 py-2 rounded-lg text-[10px] sm:text-xs font-bold text-white uppercase shadow-md active:scale-95 transition-all">返回修改</button>
+                                        <button onClick={() => { setView('form'); window.scrollTo(0,0); }} className="bg-slate-700 px-3 sm:px-4 py-2 rounded-lg text-[10px] sm:text-xs font-bold text-white uppercase shadow-md active:scale-95 transition-all">返回修改</button>
                                         {!selectedRecord && <button onClick={handleSaveInspection} className="bg-blue-500 px-3 sm:px-4 py-2 rounded-lg text-[10px] sm:text-xs font-bold text-white uppercase shadow-md active:scale-95 transition-all">儲存紀錄</button>}
-                                        <button onClick={() => { setSelectedRecord(null); setFormData(initialFormData); setView('form'); }} className="bg-slate-800 px-3 sm:px-4 py-2 rounded-lg text-[10px] sm:text-xs font-bold text-white uppercase shadow-md active:scale-95 transition-all">新巡檢</button>
+                                        <button onClick={() => { setSelectedRecord(null); setFormData(initialFormData); setView('form'); window.scrollTo(0,0); }} className="bg-slate-800 px-3 sm:px-4 py-2 rounded-lg text-[10px] sm:text-xs font-bold text-white uppercase shadow-md active:scale-95 transition-all">新巡檢</button>
                                         <button onClick={() => window.print()} className="bg-red-600 px-3 sm:px-4 py-2 rounded-lg text-[10px] sm:text-xs font-bold text-white flex items-center gap-2 uppercase font-black shadow-md active:scale-95 transition-all">列印報告</button>
                                     </div>
                                 </div>
@@ -414,7 +415,8 @@
 
                                 {r.prevImprovements?.length > 0 && (
                                     <div className="space-y-4 avoid-break">
-                                        <h3 className="font-black text-slate-900 text-sm uppercase tracking-widest border-l-4 border-orange-500 pl-3 italic">上期改善進度</h3>
+                                        {/* 修改：上期改善進度旁的一槓改為黃色 (amber-400) */}
+                                        <h3 className="font-black text-slate-900 text-sm uppercase tracking-widest border-l-4 border-amber-400 pl-3 italic">上期改善進度</h3>
                                         <div className="space-y-2">
                                             {r.prevImprovements.map(item => (
                                                 <div key={item.id} className="flex justify-between p-4 bg-slate-50 rounded-xl border border-slate-100 shadow-sm gap-4">
@@ -487,8 +489,8 @@
                     <nav className="bg-slate-900 text-white p-5 sticky top-0 z-40 flex justify-between items-center shadow-lg">
                         <div className="flex items-center gap-3"><div className="bg-red-600 px-3 py-1 rounded-xl font-black text-sm italic uppercase text-white tracking-widest shadow-md shadow-red-900/50">饗麻饗辣</div></div>
                         <div className="flex gap-2 text-white">
-                            <button onClick={() => setView('history')} className="bg-slate-800 px-3 sm:px-4 py-2 rounded-xl text-slate-300 font-black text-[10px] sm:text-xs border border-slate-700 active:bg-slate-700 transition-colors uppercase italic tracking-tighter">歷史紀錄</button>
-                            <button onClick={() => setView('manage')} className="bg-slate-800 px-3 sm:px-4 py-2 rounded-xl text-slate-300 font-black text-[10px] sm:text-xs border border-slate-700 active:bg-slate-700 transition-colors uppercase italic tracking-tighter">設定</button>
+                            <button onClick={() => { setView('history'); window.scrollTo(0,0); }} className="bg-slate-800 px-3 sm:px-4 py-2 rounded-xl text-slate-300 font-black text-[10px] sm:text-xs border border-slate-700 active:bg-slate-700 transition-colors uppercase italic tracking-tighter">歷史紀錄</button>
+                            <button onClick={() => { setView('manage'); window.scrollTo(0,0); }} className="bg-slate-800 px-3 sm:px-4 py-2 rounded-xl text-slate-300 font-black text-[10px] sm:text-xs border border-slate-700 active:bg-slate-700 transition-colors uppercase italic tracking-tighter">設定</button>
                             {/* 更新導覽列預覽點擊事件 */}
                             <button onClick={() => { setView('report'); window.scrollTo(0, 0); }} className="bg-blue-600 px-4 sm:px-6 py-2 rounded-xl font-black text-[10px] sm:text-xs shadow-xl text-white border border-blue-500 active:bg-blue-500 transition-colors uppercase italic tracking-tighter">預覽</button>
                         </div>
