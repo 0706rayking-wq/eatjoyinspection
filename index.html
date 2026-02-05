@@ -228,7 +228,7 @@
             };
 
             const handleAiGenerateSummary = async () => {
-                if (!apiKey) return alert("請填寫 Gemini API Key");
+                if (!apiKey) return alert("AIzaSyBtACOcfDyx_M02tlj_gKxMzQtuCsFjyRI");
                 setIsGeneratingSummary(true);
                 const badItems = formData.activeChecklist.filter(i => i.status === '差').map(i => i.item).join('、');
                 const defs = formData.currentDeficiencies.map(d => `[${d.type === 'require' ? '要求' : '建議'}] ${d.task}`).join('\n');
@@ -545,4 +545,5 @@
     </script>
 </body>
 </html>
+
 
