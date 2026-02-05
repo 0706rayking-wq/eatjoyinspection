@@ -398,7 +398,7 @@
                                 )}
 
                                 <div className="space-y-4 avoid-break">
-                                    <h3 className="font-black text-slate-900 text-sm uppercase tracking-widest border-l-4 border-red-500 pl-3 italic">本次缺失改善</h3>
+                                    <h3 className="font-black text-slate-900 text-sm uppercase tracking-widest border-l-4 border-red-500 pl-3 italic">本次缺失及建議</h3>
                                     <div className="space-y-2">
                                         {r.currentDeficiencies?.map(d => (
                                             <div key={d.id} className={`p-4 rounded-2xl flex items-center justify-between border ${d.type === 'require' ? 'bg-red-50 border-red-100' : 'bg-blue-50 border-blue-100'} shadow-sm gap-4`}>
@@ -590,6 +590,7 @@
     </script>
 </body>
 </html>
+
 
 
 
