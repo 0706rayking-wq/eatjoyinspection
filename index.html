@@ -263,7 +263,7 @@
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6 no-print text-slate-900">
                     <div className="bg-white rounded-3xl p-8 max-sm w-full shadow-2xl space-y-6 text-center">
                         <p className="font-bold text-slate-700 leading-relaxed break-words">{messageBox.text}</p>
-                        <button onClick={() => setMessageBox({ show: false, text: '', onConfirm: null })} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black active:scale-95 transition-all text-sm">確定</button>
+                        <button onClick={() => setMessageBox({ show: false, text: '', onConfirm: null })} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black active:scale-95 transition-all text-sm uppercase italic">確定</button>
                     </div>
                 </div>
             );
@@ -291,7 +291,7 @@
                                     <input autoFocus type="text" className="flex-1 border rounded-xl px-4 py-2 text-sm outline-none focus:border-red-500 shadow-inner" value={newStoreInput} onChange={(e) => setNewStoreInput(e.target.value)} placeholder="分店名稱" />
                                     <button onClick={async () => { if(newStoreInput.trim()){ await window.FB.updateDoc(window.FB.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'stores'), { list: window.FB.arrayUnion(newStoreInput.trim()) }); setNewStoreInput(""); setIsAddingStore(false); } }} className="bg-red-600 text-white px-4 py-2 rounded-xl font-bold">確認</button>
                                 </div>
-                            ) : <button onClick={() => setIsAddingStore(true)} className="w-full border-2 border-dashed border-slate-200 py-3 rounded-2xl text-slate-400 font-bold text-sm">+ 新增分店</button>}
+                            ) : <button onClick={() => setIsAddingStore(true)} className="w-full border-2 border-dashed border-slate-200 py-3 rounded-2xl text-slate-400 font-bold text-sm hover:border-red-500 transition-colors uppercase italic">+ 新增分店</button>}
                         </section>
                         <section className="space-y-4">
                             <h2 className="font-black text-slate-800 text-lg px-2 text-blue-600 border-l-4 border-blue-600 pl-3">巡檢細項編輯</h2>
@@ -317,7 +317,25 @@
                 </div>
             );
 
-            // 報表視圖
+            // 2. 歷史紀錄
+            if (view === 'history') return (
+                <div className="min-h-screen bg-slate-50 pb-24 text-slate-900">
+                    <nav className="bg-slate-900 text-white p-5 sticky top-0 z-50 flex justify-between items-center shadow-xl">
+                        <div className="text-blue-400 font-black text-xl italic uppercase tracking-widest">歷史紀錄</div>
+                        <button onClick={() => { setView('form'); window.scrollTo(0,0); }} className="bg-slate-800 px-5 py-2 rounded-xl text-sm font-bold text-white uppercase italic tracking-tighter">返回首頁</button>
+                    </nav>
+                    <div className="max-w-2xl mx-auto p-4 space-y-4 mt-4">
+                        {historyRecords.length === 0 ? <div className="text-center py-20 text-slate-300 font-bold border-2 border-dashed rounded-3xl uppercase italic tracking-widest">尚無紀錄</div> : historyRecords.map(r => (
+                            <div key={r.id} onClick={() => { setSelectedRecord(r); setView('report'); window.scrollTo(0, 0); }} className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex justify-between items-center cursor-pointer active:scale-95 transition-all">
+                                <div><h4 className="font-black text-lg text-slate-800">{String(r.storeName)}</h4><p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{String(r.date)} · {String(r.supervisor)}</p></div>
+                                <div className="flex items-center gap-4"><div className={`text-2xl font-black ${getGradeColor(r.overallScore)}`}>{String(r.overallScore)}</div><button onClick={(e) => { e.stopPropagation(); if(confirm("確定刪除此紀錄？")) window.FB.deleteDoc(window.FB.doc(db, 'artifacts', appId, 'public', 'data', 'history', r.id)); }} className="text-slate-300 hover:text-red-500 font-bold text-xs px-2">刪除</button></div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+
+            // 3. 報表視圖
             if (view === 'report') {
                 const r = selectedRecord || { ...formData, id: "預覽-" + new Date().getTime() };
                 const recCategories = [...new Set((r.activeChecklist || []).map(i => i.category))];
@@ -328,9 +346,8 @@
                         <MessageBox />
                         <div className="max-w-4xl mx-auto bg-white shadow-2xl overflow-hidden print:shadow-none text-slate-900 border-b-8 border-slate-900 print-shadow-none">
                             
-                            {/* 第一頁：分店與評價 (手機版優化防跑版) */}
-                            <div className="bg-white p-6 sm:p-10 flex flex-col sm:flex-row justify-between items-start border-b border-slate-100 gap-8 sm:gap-0">
-                                <div className="flex-1 min-w-0">
+                            <div className="bg-white p-10 flex flex-col sm:flex-row justify-between items-start border-b border-slate-100 gap-8 sm:gap-0">
+                                <div className="flex-1 pr-6 min-w-0">
                                     <h1 className="text-4xl sm:text-5xl font-black italic text-slate-400 uppercase tracking-tighter mb-3 break-words leading-tight w-full">
                                         {String(r.storeName)}
                                     </h1>
@@ -346,16 +363,15 @@
                                         </div>
                                     </div>
                                     <div className="no-print flex flex-wrap gap-2 w-full justify-start sm:justify-end">
-                                        <button onClick={() => { setView('form'); window.scrollTo(0,0); }} className="flex-1 sm:flex-none bg-slate-700 px-4 py-3 rounded-xl text-xs font-bold text-white uppercase shadow-md active:scale-95 transition-all">返回修改</button>
-                                        {!selectedRecord && <button onClick={handleSaveInspection} className="flex-1 sm:flex-none bg-blue-500 px-4 py-3 rounded-xl text-xs font-bold text-white uppercase shadow-md active:scale-95 transition-all">儲存紀錄</button>}
-                                        <button onClick={() => { setSelectedRecord(null); setFormData(initialFormData); setView('form'); window.scrollTo(0,0); }} className="flex-1 sm:flex-none bg-slate-800 px-4 py-3 rounded-xl text-xs font-bold text-white uppercase shadow-md active:scale-95 transition-all">新巡檢</button>
+                                        <button onClick={() => { setView('form'); window.scrollTo(0,0); }} className="bg-slate-700 px-4 py-3 rounded-xl text-xs font-bold text-white uppercase shadow-md active:scale-95 transition-all">返回修改</button>
+                                        {!selectedRecord && <button onClick={handleSaveInspection} className="bg-blue-500 px-4 py-3 rounded-xl text-xs font-bold text-white uppercase shadow-md active:scale-95 transition-all">儲存紀錄</button>}
+                                        <button onClick={() => { setSelectedRecord(null); setFormData(initialFormData); setView('form'); window.scrollTo(0,0); }} className="bg-slate-800 px-4 py-3 rounded-xl text-xs font-bold text-white uppercase shadow-md active:scale-95 transition-all">新巡檢</button>
                                         <button onClick={() => window.print()} className="w-full sm:w-auto bg-red-600 px-6 py-3 rounded-xl text-xs font-bold text-white flex items-center justify-center gap-2 uppercase font-black shadow-md active:scale-95 transition-all">列印報告</button>
                                     </div>
                                 </div>
                             </div>
 
                             <div className="p-6 sm:p-10 space-y-12">
-                                {/* 第一頁：營運資訊一列化 */}
                                 <div className="grid grid-cols-2 border-2 border-slate-900 text-slate-700 shadow-sm rounded-lg overflow-hidden">
                                     <div className="flex divide-x divide-slate-200 border-r border-slate-900">
                                         <div className="p-3 bg-slate-50 text-sm font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">營運總監</div>
@@ -421,7 +437,7 @@
 
                                 <div className="border-t-4 border-slate-900 pt-8 text-right avoid-break">
                                     <p className="text-slate-300 font-black italic text-[10px] uppercase tracking-[0.2em]">
-                                        饗麻饗辣 · 雲端同步巡檢系統<br/>
+                                        饗麻饗辣 EATJOY · 雲端同步巡檢系統<br/>
                                         報告編號: {String(r.id?.slice(-8))}
                                     </p>
                                 </div>
@@ -436,7 +452,7 @@
                 <div className="min-h-screen bg-slate-100 pb-32 font-sans text-slate-900">
                     <MessageBox />
                     <nav className="bg-slate-900 text-white p-5 sticky top-0 z-40 flex justify-between items-center shadow-lg">
-                        <div className="flex items-center gap-3"><div className="bg-red-600 px-3 py-1 rounded-xl font-black text-sm italic uppercase text-white tracking-widest shadow-md">饗麻饗辣</div></div>
+                        <div className="flex items-center gap-3"><div className="bg-red-600 px-3 py-1 rounded-xl font-black text-sm italic uppercase text-white tracking-widest shadow-md shadow-red-900/50">饗麻饗辣</div></div>
                         <div className="flex gap-2 text-white">
                             <button onClick={() => { setView('history'); window.scrollTo(0,0); }} className="bg-slate-800 px-3 sm:px-4 py-2 rounded-xl text-slate-300 font-black text-[10px] sm:text-xs border border-slate-700 active:bg-slate-700 transition-colors uppercase italic tracking-tighter">歷史紀錄</button>
                             <button onClick={() => { setView('manage'); window.scrollTo(0,0); }} className="bg-slate-800 px-3 sm:px-4 py-2 rounded-xl text-slate-300 font-black text-[10px] sm:text-xs border border-slate-700 active:bg-slate-700 transition-colors uppercase italic tracking-tighter">設定</button>
@@ -462,7 +478,7 @@
                             <div className="flex justify-between items-center">
                                 <h2 className="font-black text-xs uppercase tracking-widest text-orange-600 flex items-center gap-2 italic uppercase">● 前期改善追蹤</h2>
                                 {formData.prevImprovements.length > 0 && (
-                                    <span className="text-[10px] font-bold bg-orange-200 text-orange-700 px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-sm">只要未改善就會持續保留到下次自動追蹤</span>
+                                    <span className="text-[10px] font-bold bg-orange-200 text-orange-700 px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-sm">自動帶入項目</span>
                                 )}
                             </div>
                             <div className="flex gap-2">
@@ -508,7 +524,7 @@
                         ))}
 
                         <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200 space-y-6 overflow-hidden text-slate-900">
-                            <div className="flex justify-between items-center"><h2 className="font-black text-xs uppercase text-slate-400 flex items-center gap-2 italic uppercase tracking-widest">● 本月缺失與建議</h2></div>
+                            <div className="flex justify-between items-center"><h2 className="font-black text-xs uppercase text-slate-400 flex items-center gap-2 italic uppercase tracking-widest">● 本月缺失項目</h2></div>
                             <textarea className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-bold min-h-[100px] outline-none shadow-inner focus:ring-1 focus:ring-blue-500" placeholder="輸入現場缺失內容，點選下方按鈕加入清單..." value={rawInput} onChange={e => setRawInput(e.target.value)} />
                             <div className="flex flex-wrap gap-2">
                                 <button onClick={() => addDeficiency('suggest')} className="flex-1 min-w-[120px] bg-blue-100 text-blue-600 py-3 rounded-xl font-black text-xs active:scale-95 border border-blue-200 hover:bg-blue-200 transition-colors uppercase italic shadow-sm">＋ 建議項目</button>
@@ -538,36 +554,27 @@
                             ) : <div className="border-2 border-dashed border-slate-100 rounded-2xl p-8 text-center text-xs tracking-widest uppercase italic opacity-40">尚未上傳照片</div>}
                         </section>
 
-                        {/* --- 升級後的評價選擇區塊 (左右滑動淡化效果) --- */}
+                        {/* 總結與評價區塊 */}
                         <section className="bg-slate-900 rounded-[3rem] p-10 space-y-8 text-white shadow-2xl relative overflow-hidden border-t-8 border-red-600 text-center">
                             <div className="space-y-4 relative text-left">
-                                <label className="text-xl font-black text-slate-300 uppercase tracking-widest italic uppercase italic tracking-widest">督導建議總結</label>
-                                <textarea className="w-full bg-slate-800 border border-slate-700 rounded-3xl p-6 text-sm font-bold text-white min-h-[160px] outline-none focus:border-red-500 placeholder-slate-500 shadow-inner leading-relaxed" placeholder="請手動輸入對該門店的觀察與改進建議..." value={formData.overallComment} onChange={e => setFormData({...formData, overallComment: e.target.value})} />
+                                <label className="text-2xl font-black text-slate-300 uppercase tracking-widest italic uppercase italic tracking-widest">督導建議總結</label>
+                                <textarea className="w-full bg-slate-800 border border-slate-700 rounded-3xl p-6 text-sm font-bold text-white min-h-[160px] outline-none focus:border-red-500 placeholder-slate-500 shadow-inner leading-relaxed" placeholder="請手動輸入對該門店的觀察與改善建議..." value={formData.overallComment} onChange={e => setFormData({...formData, overallComment: e.target.value})} />
                             </div>
                             
                             <div className="space-y-4 relative text-center">
                                 <h2 className="font-black text-2xl text-slate-400 uppercase tracking-[0.3em] italic">給予本月評價</h2>
                                 
-                                {/* 左右滑動選擇器容器 */}
-                                <div className="relative w-full overflow-hidden py-4">
-                                    <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar gap-12 items-center justify-start px-[40%] scroll-smooth">
+                                {/* 修改：由滑動選擇改回下拉式選單，但維持大字體樣式 */}
+                                <div className="relative w-full py-4">
+                                    <select 
+                                        className={`bg-transparent text-8xl sm:text-9xl font-black outline-none appearance-none text-center w-full cursor-pointer italic ${getGradeColor(formData.overallScore)} transition-colors`}
+                                        value={formData.overallScore}
+                                        onChange={e => setFormData({...formData, overallScore: e.target.value})}
+                                    >
                                         {GRADES.map(g => (
-                                            <div
-                                                key={g}
-                                                onClick={() => setFormData({...formData, overallScore: g})}
-                                                className={`snap-center shrink-0 cursor-pointer transition-all duration-500 transform ${
-                                                    formData.overallScore === g
-                                                    ? `text-8xl sm:text-9xl font-black ${getGradeColor(g)} opacity-100 scale-110 rotate-[-5deg]`
-                                                    : 'text-4xl sm:text-5xl font-bold text-slate-500 opacity-20 scale-90'
-                                                }`}
-                                            >
-                                                {g}
-                                            </div>
+                                            <option key={g} value={g} className="bg-slate-800 text-white text-9xl font-bold">{g}</option>
                                         ))}
-                                    </div>
-                                    {/* 滑動提示箭頭 (可選) */}
-                                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-12 h-12 bg-gradient-to-r from-slate-900 to-transparent pointer-events-none"></div>
-                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-12 h-12 bg-gradient-to-l from-slate-900 to-transparent pointer-events-none"></div>
+                                    </select>
                                 </div>
                             </div>
                             
