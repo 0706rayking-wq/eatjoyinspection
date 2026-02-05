@@ -416,7 +416,7 @@
 
                                 {r.prevImprovements?.length > 0 && (
                                     <div className="space-y-4 avoid-break">
-                                        <h3 className="font-black text-slate-900 text-sm uppercase tracking-widest border-l-4 border-orange-500 pl-3 italic">上期改善進度</h3>
+                                        <h3 className="font-black text-slate-900 text-sm uppercase tracking-widest border-l-4 border-yollow-500 pl-3 italic">上期改善進度</h3>
                                         <div className="space-y-2">
                                             {r.prevImprovements.map(item => (
                                                 <div key={item.id} className="flex justify-between p-4 bg-slate-50 rounded-xl border border-slate-100 shadow-sm gap-4">
@@ -451,7 +451,6 @@
                                     )}
                                     
                                     <div className="bg-blue-50 border-l-4 border-blue-600 p-8 space-y-3 text-slate-700 shadow-inner avoid-break">
-                                        <h3 className="font-black text-blue-900 text-xs uppercase tracking-widest italic opacity-60">Supervisor Summary</h3>
                                         <h3 className="font-black text-blue-900 text-lg uppercase tracking-widest">營運總監總結建議</h3>
                                         <p className="leading-relaxed font-bold italic break-words whitespace-pre-wrap mt-2 text-base">{String(r.overallComment || "當次巡訪狀況優良，無特殊待改進項目。")}</p>
                                     </div>
@@ -498,7 +497,7 @@
                         {/* 基本資訊 */}
                         <section className="bg-white rounded-[2.5rem] p-6 sm:p-8 shadow-sm border border-slate-200 space-y-6">
                             <div className="space-y-4">
-                                <div className="flex items-center gap-2 px-1 text-[10px] font-black text-slate-400 uppercase tracking-widest border-l-2 border-blue-500 pl-2 uppercase italic">Store Information</div>
+                                <div className="flex items-center gap-2 px-1 text-[10px] font-black text-slate-400 uppercase tracking-widest border-l-2 border-blue-500 pl-2 uppercase italic">資訊</div>
                                 <div className="grid grid-cols-2 gap-3">
                                     <select className="col-span-2 bg-slate-50 border-none rounded-2xl p-4 font-black text-sm outline-none cursor-pointer shadow-inner" value={formData.storeName} onChange={e => setFormData({...formData, storeName: e.target.value})}>
                                         {stores.map(s => <option key={s} value={s}>{s}</option>)}
@@ -616,4 +615,5 @@
     </script>
 </body>
 </html>
+
 
