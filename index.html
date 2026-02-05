@@ -358,7 +358,7 @@
                                 <div className="shrink-0 w-full sm:w-auto flex flex-col items-start sm:items-end justify-start gap-4 sm:gap-6">
                                     <div className="flex items-center sm:items-end gap-4 sm:gap-0 sm:flex-col">
                                         <span className="text-slate-400 text-xs font-black uppercase tracking-widest italic sm:mb-1">本月評價</span>
-                                        <div className={`text-6xl sm:text-8xl font-black italic tracking-tighter leading-none ${getGradeColor(r.overallScore)}`}>
+                                        <div className={`text-6xl sm:text-2xl font-black italic tracking-tighter leading-none ${getGradeColor(r.overallScore)}`}>
                                             {String(r.overallScore)}
                                         </div>
                                     </div>
@@ -478,7 +478,7 @@
                             <div className="flex justify-between items-center">
                                 <h2 className="font-black text-xs uppercase tracking-widest text-orange-600 flex items-center gap-2 italic uppercase">● 前期改善追蹤</h2>
                                 {formData.prevImprovements.length > 0 && (
-                                    <span className="text-[10px] font-bold bg-orange-200 text-orange-700 px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-sm">自動帶入項目</span>
+                                    <span className="text-[10px] font-bold bg-orange-200 text-orange-700 px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-sm">前幾期未改善就會一直持續追蹤到改善為止</span>
                                 )}
                             </div>
                             <div className="flex gap-2">
@@ -590,3 +590,4 @@
     </script>
 </body>
 </html>
+
