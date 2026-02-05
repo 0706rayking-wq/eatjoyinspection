@@ -24,7 +24,7 @@
             /* 強制分頁：用於新分頁開始的區塊 */
             .page-break { page-break-before: always !important; break-before: page !important; }
             /* 設定列印頁面邊距 */
-            @page { margin: 1.5cm; }
+            @page { margin: 1cm; }
             body { background: white; }
         }
 
@@ -55,7 +55,7 @@
     </script>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
+        const { useState, useEffect, useMemo, useRef } = React;
 
         /**
          * --- Firebase 配置 ---
@@ -108,14 +108,13 @@
 
             const showMsg = (text) => setMessageBox({ show: true, text, onConfirm: null });
 
-            // 最終評價配色邏輯：A 紅、C 綠
+            // 評價配色邏輯
             const getGradeColor = (grade) => {
                 if (grade.startsWith('A')) return 'text-red-600';
                 if (grade.startsWith('C')) return 'text-green-600';
                 return 'text-blue-600';
             };
 
-            // 巡檢項目狀態配色邏輯：優 紅、差 綠
             const getStatusBtnClass = (currentStatus, btnStatus) => {
                 if (currentStatus !== btnStatus) return 'bg-slate-100 text-slate-400';
                 if (btnStatus === '優') return 'bg-red-600 text-white shadow-xl scale-[1.05] transition-all';
@@ -129,7 +128,6 @@
                 return 'text-slate-400 bg-slate-50 border-slate-100';
             };
 
-            // --- Firebase 初始化 ---
             const [db, setDb] = useState(null);
 
             const startConnection = async () => {
@@ -158,7 +156,6 @@
                 else window.addEventListener('firebase-sdk-loaded', startConnection);
             }, []);
 
-            // --- 資料同步 ---
             useEffect(() => {
                 if (!user || !db) return;
                 const { doc, collection, onSnapshot, setDoc } = window.FB;
@@ -192,41 +189,33 @@
                 }
             }, [stores, checklistTemplate, view]);
 
-            // --- ✨ 自動帶入上期缺失邏輯（升級版：包含所有未改善項） ✨ ---
+            // 自動帶入上期缺失
             useEffect(() => {
                 if (view === 'form' && formData.storeName && historyRecords.length > 0) {
                     const lastRecord = historyRecords.find(r => r.storeName === formData.storeName);
-                    
                     if (lastRecord) {
                         const newTasksFromLastTime = (lastRecord.currentDeficiencies || []).map(def => ({
-                            id: def.id + "_new_carry", 
+                            id: def.id + "_新帶入", 
                             task: def.task,
                             status: 'pending' 
                         }));
-
                         const unresolvedTasksFromLastTime = (lastRecord.prevImprovements || [])
                             .filter(item => item.status === 'pending')
                             .map(item => ({
                                 ...item,
-                                id: item.id + "_pending_carry" 
+                                id: item.id + "_持續未改善" 
                             }));
-
                         const combinedTasks = [...unresolvedTasksFromLastTime, ...newTasksFromLastTime];
-                        
-                        setFormData(prev => ({
-                            ...prev,
-                            prevImprovements: combinedTasks
-                        }));
+                        setFormData(prev => ({ ...prev, prevImprovements: combinedTasks }));
                     } else {
                         setFormData(prev => ({ ...prev, prevImprovements: [] }));
                     }
                 }
             }, [formData.storeName, historyRecords.length, view]);
 
-            // --- 邏輯函數 ---
             const handleSaveInspection = async () => {
                 if (!user || !db) return;
-                if (!formData.supervisor) return showMsg("請填寫主管姓名");
+                if (!formData.supervisor) return showMsg("請填寫營運總監姓名");
                 try {
                     const docRef = await window.FB.addDoc(window.FB.collection(db, 'artifacts', appId, 'public', 'data', 'history'), { ...formData, createdAt: new Date().toISOString() });
                     const savedData = { ...formData, id: docRef.id };
@@ -270,53 +259,30 @@
                 return parseInt(parts[1], 10) + "月份";
             };
 
-            // --- 視圖渲染 ---
-
             const MessageBox = () => messageBox.show && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6 no-print text-slate-900">
-                    <div className="bg-white rounded-3xl p-8 max-sm w-full shadow-2xl space-y-6">
-                        <p className="text-center font-bold text-slate-700 leading-relaxed break-words">{messageBox.text}</p>
-                        <button onClick={() => setMessageBox({ show: false, text: '', onConfirm: null })} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black active:scale-95 transition-all text-sm uppercase italic">確定</button>
+                    <div className="bg-white rounded-3xl p-8 max-sm w-full shadow-2xl space-y-6 text-center">
+                        <p className="font-bold text-slate-700 leading-relaxed break-words">{messageBox.text}</p>
+                        <button onClick={() => setMessageBox({ show: false, text: '', onConfirm: null })} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black active:scale-95 transition-all text-sm">確定</button>
                     </div>
                 </div>
             );
 
-            if (connError) return (
-                <div className="h-screen flex flex-col items-center justify-center bg-slate-900 text-white p-8 text-center">
-                    <div className="text-red-500 mb-4 text-6xl">⚠️</div>
-                    <h1 className="text-2xl font-black mb-4">雲端連線失敗</h1>
-                    <p className="text-slate-400 mb-8 max-w-md">{connError}</p>
-                    <button onClick={startConnection} className="bg-blue-600 px-8 py-3 rounded-2xl font-bold active:scale-95 transition-all">重新連線</button>
-                </div>
-            );
-
-            if (!user) return (
-                <div className="h-screen flex flex-col items-center justify-center bg-slate-900 text-white font-black italic text-center p-10">
-                    <div className="w-12 h-12 border-4 border-red-600 border-t-transparent rounded-full animate-spin mb-4 mx-auto"></div>
-                    <p className="tracking-widest uppercase opacity-60">饗麻饗辣 - Syncing...</p>
-                </div>
-            );
-
-            // 1. 管理頁面
+            // 管理設定頁面
             if (view === 'manage') return (
                 <div className="min-h-screen bg-slate-50 pb-20 text-slate-900">
                     <nav className="bg-slate-900 text-white p-5 sticky top-0 z-50 flex justify-between items-center shadow-xl">
-                        <div className="font-black text-xl italic text-red-500 uppercase tracking-tighter">系統設定</div>
-                        <button onClick={() => setView('form')} className="bg-blue-600 px-6 py-2 rounded-xl font-bold text-sm text-white">返回首頁</button>
+                        <div className="font-black text-xl italic text-red-500 uppercase tracking-tighter">系統管理</div>
+                        <button onClick={() => { setView('form'); window.scrollTo(0,0); }} className="bg-blue-600 px-6 py-2 rounded-xl font-bold text-sm text-white">返回首頁</button>
                     </nav>
                     <div className="max-w-xl mx-auto p-4 space-y-8 mt-6">
-                        {/* 門店管理 */}
                         <section className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
                             <h2 className="font-black text-slate-800 text-lg mb-4 text-blue-600">分店名單管理</h2>
                             <div className="flex flex-wrap gap-2 mb-4">
                                 {stores.map(s => (
                                     <div key={s} className="bg-slate-100 px-3 py-1.5 rounded-lg flex items-center gap-2 border border-slate-200">
                                         <span className="text-sm font-bold text-slate-700">{s}</span>
-                                        <button onClick={async () => {
-                                            if(confirm(`確定刪除分店：${s}？`)) {
-                                                await window.FB.updateDoc(window.FB.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'stores'), { list: window.FB.arrayRemove(s) });
-                                            }
-                                        }} className="text-red-400 font-bold text-xs px-1">刪除</button>
+                                        <button onClick={async () => { if(confirm(`確定刪除分店：${s}？`)) { await window.FB.updateDoc(window.FB.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'stores'), { list: window.FB.arrayRemove(s) }); } }} className="text-red-400 font-bold text-xs px-1">刪除</button>
                                     </div>
                                 ))}
                             </div>
@@ -325,24 +291,23 @@
                                     <input autoFocus type="text" className="flex-1 border rounded-xl px-4 py-2 text-sm outline-none focus:border-red-500 shadow-inner" value={newStoreInput} onChange={(e) => setNewStoreInput(e.target.value)} placeholder="分店名稱" />
                                     <button onClick={async () => { if(newStoreInput.trim()){ await window.FB.updateDoc(window.FB.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'stores'), { list: window.FB.arrayUnion(newStoreInput.trim()) }); setNewStoreInput(""); setIsAddingStore(false); } }} className="bg-red-600 text-white px-4 py-2 rounded-xl font-bold">確認</button>
                                 </div>
-                            ) : <button onClick={() => setIsAddingStore(true)} className="w-full border-2 border-dashed border-slate-200 py-3 rounded-2xl text-slate-400 font-bold text-sm hover:border-red-500 transition-colors uppercase italic">+ Add Store</button>}
+                            ) : <button onClick={() => setIsAddingStore(true)} className="w-full border-2 border-dashed border-slate-200 py-3 rounded-2xl text-slate-400 font-bold text-sm">+ 新增分店</button>}
                         </section>
-
                         <section className="space-y-4">
-                            <h2 className="font-black text-slate-800 text-lg px-2 text-blue-600 border-l-4 border-blue-600 pl-3">巡檢項目編輯</h2>
+                            <h2 className="font-black text-slate-800 text-lg px-2 text-blue-600 border-l-4 border-blue-600 pl-3">巡檢細項編輯</h2>
                             {categories.map(cat => (
                                 <div key={cat} className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100 space-y-3">
-                                    <h3 className="font-black text-blue-500 text-xs uppercase tracking-widest">{cat}</h3>
+                                    <h3 className="font-black text-red-600 text-lg uppercase tracking-widest">{cat}</h3>
                                     <div className="space-y-2">
                                         {checklistTemplate.filter(i => i.category === cat).map(item => (
                                             <div key={item.id} className="flex items-start gap-2 group border-b border-slate-50 pb-2">
                                                 <p className="flex-1 text-sm font-medium leading-relaxed break-words py-1">{item.item}</p>
-                                                <button onClick={async () => { if(confirm(`確定刪除項目：「${item.item}」？`)) { await window.FB.updateDoc(window.FB.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'template'), { items: window.FB.arrayRemove(item) }); } }} className="text-red-300 hover:text-red-500 font-bold text-[14px] uppercase shrink-0 py-1" >刪除</button>
+                                                <button onClick={async () => { if(confirm(`確定刪除項目：「${item.item}」？`)) { await window.FB.updateDoc(window.FB.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'template'), { items: window.FB.arrayRemove(item) }); } }} className="text-red-300 hover:text-red-500 font-bold text-xs uppercase shrink-0 py-1" >刪除</button>
                                             </div>
                                         ))}
                                         <div className="flex gap-2 pt-2">
-                                            <input type="text" placeholder="新增題目描述..." className="flex-1 bg-slate-50 border-none rounded-lg px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-blue-200 shadow-inner" value={newItemInputs[cat] || ""} onChange={(e) => setNewItemInputs({ ...newItemInputs, [cat]: e.target.value })} />
-                                            <button onClick={async () => { const text = newItemInputs[cat]; if(text && text.trim()){ await window.FB.updateDoc(window.FB.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'template'), { items: window.FB.arrayUnion({ id: Date.now() + Math.random(), category: cat, item: text.trim() }) }); setNewItemInputs({ ...newItemInputs, [cat]: "" }); } }} className="bg-slate-900 text-white px-4 py-2 rounded-lg text-xs font-bold shrink-0 active:scale-95 transition-transform">新增</button>
+                                            <input type="text" placeholder="新增細項描述..." className="flex-1 bg-slate-50 border-none rounded-lg px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-blue-200 shadow-inner" value={newItemInputs[cat] || ""} onChange={(e) => setNewItemInputs({ ...newItemInputs, [cat]: e.target.value })} />
+                                            <button onClick={async () => { const text = newItemInputs[cat]; if(text && text.trim()){ await window.FB.updateDoc(window.FB.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'template'), { items: window.FB.arrayUnion({ id: Date.now() + Math.random(), category: cat, item: text.trim() }) }); setNewItemInputs({ ...newItemInputs, [cat]: "" }); } }} className="bg-slate-900 text-white px-4 py-2 rounded-lg text-xs font-bold shrink-0">新增</button>
                                         </div>
                                     </div>
                                 </div>
@@ -352,27 +317,9 @@
                 </div>
             );
 
-            // 2. 歷史紀錄
-            if (view === 'history') return (
-                <div className="min-h-screen bg-slate-50 pb-24 text-slate-900">
-                    <nav className="bg-slate-900 text-white p-5 sticky top-0 z-50 flex justify-between items-center shadow-xl">
-                        <div className="text-blue-400 font-black text-xl italic uppercase tracking-widest">歷史紀錄</div>
-                        <button onClick={() => { setView('form'); window.scrollTo(0,0); }} className="bg-slate-800 px-5 py-2 rounded-xl text-sm font-bold text-white">返回首頁</button>
-                    </nav>
-                    <div className="max-w-2xl mx-auto p-4 space-y-4 mt-4">
-                        {historyRecords.length === 0 ? <div className="text-center py-20 text-slate-300 font-bold border-2 border-dashed rounded-3xl uppercase italic tracking-widest">NO RECORDS</div> : historyRecords.map(r => (
-                            <div key={r.id} onClick={() => { setSelectedRecord(r); setView('report'); window.scrollTo(0, 0); }} className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex justify-between items-center cursor-pointer active:scale-95 transition-all">
-                                <div><h4 className="font-black text-lg text-slate-800">{String(r.storeName)}</h4><p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{String(r.date)} · {String(r.supervisor)}</p></div>
-                                <div className="flex items-center gap-4"><div className={`text-2xl font-black ${getGradeColor(r.overallScore)}`}>{String(r.overallScore)}</div><button onClick={(e) => { e.stopPropagation(); if(confirm("確定刪除此紀錄？")) window.FB.deleteDoc(window.FB.doc(db, 'artifacts', appId, 'public', 'data', 'history', r.id)); }} className="text-slate-300 hover:text-red-500 font-bold text-xs px-2">刪除</button></div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            );
-
-            // 3. 報表視圖 (更新列印樣式：三頁分頁邏輯)
+            // 報表視圖
             if (view === 'report') {
-                const r = selectedRecord || { ...formData, id: "PREVIEW-" + new Date().getTime() };
+                const r = selectedRecord || { ...formData, id: "預覽-" + new Date().getTime() };
                 const recCategories = [...new Set((r.activeChecklist || []).map(i => i.category))];
                 const reportMonth = getMonthFromDate(r.date);
 
@@ -381,41 +328,47 @@
                         <MessageBox />
                         <div className="max-w-4xl mx-auto bg-white shadow-2xl overflow-hidden print:shadow-none text-slate-900 border-b-8 border-slate-900 print-shadow-none">
                             
-                            {/* --- 第一頁：分店標題與最終評價 --- */}
-                            <div className="bg-white p-10 flex flex-col sm:flex-row justify-between items-start border-b border-slate-100 gap-4 sm:gap-0">
-                                <div className="flex-1 pr-6 min-w-0">
-                                    <h1 className="text-3xl sm:text-5xl font-black italic text-slate-400 uppercase tracking-tighter mb-3 break-words leading-tight">
+                            {/* 第一頁：分店與評價 (手機版優化防跑版) */}
+                            <div className="bg-white p-6 sm:p-10 flex flex-col sm:flex-row justify-between items-start border-b border-slate-100 gap-8 sm:gap-0">
+                                <div className="flex-1 min-w-0">
+                                    <h1 className="text-4xl sm:text-5xl font-black italic text-slate-400 uppercase tracking-tighter mb-3 break-words leading-tight w-full">
                                         {String(r.storeName)}
                                     </h1>
                                     <p className="text-blue-500 font-bold tracking-[0.2em] sm:tracking-[0.3em] uppercase text-xs sm:text-sm">
                                         {reportMonth} 巡視報告 · {String(r.date)}
                                     </p>
                                 </div>
-                                <div className="text-right shrink-0 w-full sm:w-auto flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start border-t sm:border-t-0 pt-4 sm:pt-0 border-slate-100">
-                                    <div className="flex flex-col items-start sm:items-end">
-                                        <span className="text-slate-400 text-[10px] sm:text-xs font-black uppercase tracking-widest mb-0 sm:mb-1 italic">本月評價</span>
-                                        <div className={`text-5xl sm:text-8xl font-black italic tracking-tighter ${getGradeColor(r.overallScore)}`}>
+                                <div className="shrink-0 w-full sm:w-auto flex flex-col items-start sm:items-end justify-start gap-4 sm:gap-6">
+                                    <div className="flex items-center sm:items-end gap-4 sm:gap-0 sm:flex-col">
+                                        <span className="text-slate-400 text-xs font-black uppercase tracking-widest italic sm:mb-1">本月評價</span>
+                                        <div className={`text-6xl sm:text-8xl font-black italic tracking-tighter leading-none ${getGradeColor(r.overallScore)}`}>
                                             {String(r.overallScore)}
                                         </div>
                                     </div>
-                                    <div className="no-print mt-0 sm:mt-6 flex flex-wrap gap-2 justify-end">
-                                        <button onClick={() => { setView('form'); window.scrollTo(0,0); }} className="bg-slate-700 px-3 sm:px-4 py-2 rounded-lg text-[10px] sm:text-xs font-bold text-white uppercase shadow-md active:scale-95 transition-all">返回修改</button>
-                                        {!selectedRecord && <button onClick={handleSaveInspection} className="bg-blue-500 px-3 sm:px-4 py-2 rounded-lg text-[10px] sm:text-xs font-bold text-white uppercase shadow-md active:scale-95 transition-all">儲存紀錄</button>}
-                                        <button onClick={() => { setSelectedRecord(null); setFormData(initialFormData); setView('form'); window.scrollTo(0,0); }} className="bg-slate-800 px-3 sm:px-4 py-2 rounded-lg text-[10px] sm:text-xs font-bold text-white uppercase shadow-md active:scale-95 transition-all">新巡檢</button>
-                                        <button onClick={() => window.print()} className="bg-red-600 px-3 sm:px-4 py-2 rounded-lg text-[10px] sm:text-xs font-bold text-white flex items-center gap-2 uppercase font-black shadow-md active:scale-95 transition-all">列印報告</button>
+                                    <div className="no-print flex flex-wrap gap-2 w-full justify-start sm:justify-end">
+                                        <button onClick={() => { setView('form'); window.scrollTo(0,0); }} className="flex-1 sm:flex-none bg-slate-700 px-4 py-3 rounded-xl text-xs font-bold text-white uppercase shadow-md active:scale-95 transition-all">返回修改</button>
+                                        {!selectedRecord && <button onClick={handleSaveInspection} className="flex-1 sm:flex-none bg-blue-500 px-4 py-3 rounded-xl text-xs font-bold text-white uppercase shadow-md active:scale-95 transition-all">儲存紀錄</button>}
+                                        <button onClick={() => { setSelectedRecord(null); setFormData(initialFormData); setView('form'); window.scrollTo(0,0); }} className="flex-1 sm:flex-none bg-slate-800 px-4 py-3 rounded-xl text-xs font-bold text-white uppercase shadow-md active:scale-95 transition-all">新巡檢</button>
+                                        <button onClick={() => window.print()} className="w-full sm:w-auto bg-red-600 px-6 py-3 rounded-xl text-xs font-bold text-white flex items-center justify-center gap-2 uppercase font-black shadow-md active:scale-95 transition-all">列印報告</button>
                                     </div>
                                 </div>
                             </div>
 
                             <div className="p-6 sm:p-10 space-y-12">
-                                <div className="grid grid-cols-2 md:grid-cols-4 border divide-x text-slate-700 shadow-sm rounded-lg overflow-hidden">
-                                    <div className="p-4 bg-slate-50 text-[10px] font-black text-slate-800 uppercase tracking-widest">營運總監</div><div className="p-4 font-bold break-words">{String(r.supervisor)}</div>
-                                    <div className="p-4 bg-slate-50 text-[10px] font-black text-slate-800 uppercase tracking-widest">當日值班</div><div className="p-4 font-bold break-words">{String(r.shiftStaff)}</div>
+                                {/* 第一頁：營運資訊一列化 */}
+                                <div className="grid grid-cols-2 border-2 border-slate-900 text-slate-700 shadow-sm rounded-lg overflow-hidden">
+                                    <div className="flex divide-x divide-slate-200 border-r border-slate-900">
+                                        <div className="p-3 bg-slate-50 text-sm font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">營運總監</div>
+                                        <div className="p-3 font-black text-slate-900 break-words flex-1">{String(r.supervisor)}</div>
+                                    </div>
+                                    <div className="flex divide-x divide-slate-200">
+                                        <div className="p-3 bg-slate-50 text-sm font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap">當日值班</div>
+                                        <div className="p-3 font-black text-slate-900 break-words flex-1">{String(r.shiftStaff)}</div>
+                                    </div>
                                 </div>
 
                                 {r.prevImprovements?.length > 0 && (
                                     <div className="space-y-4 avoid-break">
-                                        {/* 修改：上期改善進度旁的一槓改為黃色 (amber-400) */}
                                         <h3 className="font-black text-slate-900 text-sm uppercase tracking-widest border-l-4 border-amber-400 pl-3 italic">上期改善進度</h3>
                                         <div className="space-y-2">
                                             {r.prevImprovements.map(item => (
@@ -439,31 +392,28 @@
                                     </div>
                                 </div>
 
-                                {/* --- 第二頁：缺失圖片與總結建議 --- */}
                                 <div className="page-break pt-10 space-y-12">
                                     {r.photos?.length > 0 && (
                                         <div className="space-y-4 avoid-break">
-                                            <h3 className="font-black text-slate-900 text-xs tracking-widest uppercase border-b pb-2">現場照片存證 / Photos</h3>
+                                            <h3 className="font-black text-slate-900 text-xs tracking-widest uppercase border-b pb-2 italic opacity-60">現場照片紀錄</h3>
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                 {r.photos.map((p, i) => <img key={i} src={p} className="w-full aspect-video object-cover rounded-2xl shadow-sm border" />)}
                                             </div>
                                         </div>
                                     )}
-                                    
                                     <div className="bg-blue-50 border-l-4 border-blue-600 p-8 space-y-3 text-slate-700 shadow-inner avoid-break">
-                                        <h3 className="font-black text-blue-900 text-lg uppercase tracking-widest">督導總結</h3>
-                                        <p className="leading-relaxed font-bold italic break-words whitespace-pre-wrap mt-2 text-base">{String(r.overallComment || "當次巡訪狀況優良，無特殊待改進項目。")}</p>
+                                        <h3 className="font-black text-blue-900 text-lg uppercase tracking-widest">督導總結建議</h3>
+                                        <p className="leading-relaxed font-bold italic break-words whitespace-pre-wrap mt-2 text-base">{String(r.overallComment || "無特殊待改善項目。")}</p>
                                     </div>
                                 </div>
 
-                                {/* --- 第三頁：巡檢評核細項 --- */}
                                 <div className="page-break pt-10 space-y-8">
                                     <h3 className="font-black text-slate-900 text-sm uppercase tracking-widest border-l-4 border-green-400 pl-3 italic">巡檢評核細項</h3>
                                     {recCategories.map(cat => (
                                         <div key={cat} className="space-y-3 avoid-break">
-                                            <h3 className="font-black text-red-600 text-[10px] uppercase tracking-widest border-b pb-2">{String(cat)}</h3>
+                                            <h3 className="font-black text-red-600 text-lg uppercase tracking-widest border-b pb-2">{String(cat)}</h3>
                                             <div className="divide-y">{(r.activeChecklist || []).filter(i => i.category === cat).map((item, idx) => (
-                                                <div key={idx} className="py-3 flex justify-between items-center gap-4"><span className="text-sm font-bold text-slate-700 break-words pr-2">{String(item.item)}</span><span className={`text-[10px] font-black px-4 py-1 rounded-full border shrink-0 ${getReportBadgeClass(item.status)}`}>{String(item.status)}</span></div>
+                                                <div key={idx} className="py-3 flex justify-between items-center gap-4"><span className="text-sm font-bold text-slate-700 break-words pr-2">{String(item.item)}</span><span className={`text-[10px] font-black px-4 py-1 rounded-full border shrink-0 h-fit ${getReportBadgeClass(item.status)}`}>{String(item.status)}</span></div>
                                             ))}</div>
                                         </div>
                                     ))}
@@ -471,8 +421,8 @@
 
                                 <div className="border-t-4 border-slate-900 pt-8 text-right avoid-break">
                                     <p className="text-slate-300 font-black italic text-[10px] uppercase tracking-[0.2em]">
-                                        饗麻饗辣 EATJOY · 雲端同步巡檢系統<br/>
-                                        Report ID: {String(r.id?.slice(-8))}
+                                        饗麻饗辣 · 雲端同步巡檢系統<br/>
+                                        報告編號: {String(r.id?.slice(-8))}
                                     </p>
                                 </div>
                             </div>
@@ -481,25 +431,23 @@
                 );
             }
 
-            // 4. 主表單視圖
+            // 主表單介面
             return (
                 <div className="min-h-screen bg-slate-100 pb-32 font-sans text-slate-900">
                     <MessageBox />
                     <nav className="bg-slate-900 text-white p-5 sticky top-0 z-40 flex justify-between items-center shadow-lg">
-                        <div className="flex items-center gap-3"><div className="bg-red-600 px-3 py-1 rounded-xl font-black text-sm italic uppercase text-white tracking-widest shadow-md shadow-red-900/50">饗麻饗辣</div></div>
+                        <div className="flex items-center gap-3"><div className="bg-red-600 px-3 py-1 rounded-xl font-black text-sm italic uppercase text-white tracking-widest shadow-md">饗麻饗辣</div></div>
                         <div className="flex gap-2 text-white">
                             <button onClick={() => { setView('history'); window.scrollTo(0,0); }} className="bg-slate-800 px-3 sm:px-4 py-2 rounded-xl text-slate-300 font-black text-[10px] sm:text-xs border border-slate-700 active:bg-slate-700 transition-colors uppercase italic tracking-tighter">歷史紀錄</button>
                             <button onClick={() => { setView('manage'); window.scrollTo(0,0); }} className="bg-slate-800 px-3 sm:px-4 py-2 rounded-xl text-slate-300 font-black text-[10px] sm:text-xs border border-slate-700 active:bg-slate-700 transition-colors uppercase italic tracking-tighter">設定</button>
-                            {/* 更新導覽列預覽點擊事件 */}
                             <button onClick={() => { setView('report'); window.scrollTo(0, 0); }} className="bg-blue-600 px-4 sm:px-6 py-2 rounded-xl font-black text-[10px] sm:text-xs shadow-xl text-white border border-blue-500 active:bg-blue-500 transition-colors uppercase italic tracking-tighter">預覽</button>
                         </div>
                     </nav>
 
                     <div className="max-w-xl mx-auto p-4 space-y-6 mt-4 overflow-hidden">
-                        {/* 基本資訊 */}
-                        <section className="bg-white rounded-[2.5rem] p-6 sm:p-8 shadow-sm border border-slate-200 space-y-6">
+                        <section className="bg-white rounded-[2.5rem] p-6 sm:p-8 shadow-sm border border-slate-200 space-y-6 text-slate-900">
                             <div className="space-y-4">
-                                <div className="flex items-center gap-2 px-1 text-[10px] font-black text-slate-400 uppercase tracking-widest border-l-2 border-blue-500 pl-2 uppercase italic">巡視分店資訊</div>
+                                <div className="flex items-center gap-2 px-1 text-[10px] font-black text-slate-400 uppercase tracking-widest border-l-2 border-blue-500 pl-2 uppercase italic">門店基本資訊</div>
                                 <div className="grid grid-cols-2 gap-3">
                                     <select className="col-span-2 bg-slate-50 border-none rounded-2xl p-4 font-black text-sm outline-none cursor-pointer shadow-inner" value={formData.storeName} onChange={e => setFormData({...formData, storeName: e.target.value})}>
                                         {stores.map(s => <option key={s} value={s}>{s}</option>)}
@@ -510,12 +458,11 @@
                             </div>
                         </section>
 
-                        {/* 上期缺失追蹤 */}
-                        <section className="bg-orange-50 rounded-[2.5rem] p-6 sm:p-8 shadow-sm border border-orange-100 space-y-6 overflow-hidden">
+                        <section className="bg-orange-50 rounded-[2.5rem] p-6 sm:p-8 shadow-sm border border-orange-100 space-y-6 overflow-hidden text-slate-900">
                             <div className="flex justify-between items-center">
                                 <h2 className="font-black text-xs uppercase tracking-widest text-orange-600 flex items-center gap-2 italic uppercase">● 前期改善追蹤</h2>
                                 {formData.prevImprovements.length > 0 && (
-                                    <span className="text-[10px] font-bold bg-orange-200 text-orange-700 px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-sm">(只要一直未改善就會持續保留到下次)</span>
+                                    <span className="text-[10px] font-bold bg-orange-200 text-orange-700 px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-sm">只要未改善就會持續保留到下次自動追蹤</span>
                                 )}
                             </div>
                             <div className="flex gap-2">
@@ -542,10 +489,9 @@
                             </div>
                         </section>
 
-                        {/* 巡檢項目 */}
                         {categories.map((cat) => (
-                            <div key={cat} className="space-y-3">
-                                <h3 className="font-black text-slate-400 text-[10px] uppercase tracking-[0.3em] px-4 border-l-2 border-slate-300 ml-1 italic uppercase tracking-widest">{cat}</h3>
+                            <div key={cat} className="space-y-3 text-slate-900">
+                                <h3 className="font-black text-red-600 text-xl uppercase tracking-[0.3em] px-4 border-l-2 border-slate-300 ml-1 italic uppercase tracking-widest">{cat}</h3>
                                 <div className="space-y-3">
                                     {formData.activeChecklist.filter(item => item.category === cat).map(item => (
                                         <div key={item.id} className="bg-white rounded-[2rem] p-6 shadow-sm border border-transparent">
@@ -561,8 +507,8 @@
                             </div>
                         ))}
 
-                        <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200 space-y-6 overflow-hidden">
-                            <div className="flex justify-between items-center"><h2 className="font-black text-xs uppercase text-slate-400 flex items-center gap-2 italic uppercase tracking-widest">● 本月缺失及建議</h2></div>
+                        <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200 space-y-6 overflow-hidden text-slate-900">
+                            <div className="flex justify-between items-center"><h2 className="font-black text-xs uppercase text-slate-400 flex items-center gap-2 italic uppercase tracking-widest">● 本月缺失與建議</h2></div>
                             <textarea className="w-full bg-slate-50 border-none rounded-2xl p-5 text-sm font-bold min-h-[100px] outline-none shadow-inner focus:ring-1 focus:ring-blue-500" placeholder="輸入現場缺失內容，點選下方按鈕加入清單..." value={rawInput} onChange={e => setRawInput(e.target.value)} />
                             <div className="flex flex-wrap gap-2">
                                 <button onClick={() => addDeficiency('suggest')} className="flex-1 min-w-[120px] bg-blue-100 text-blue-600 py-3 rounded-xl font-black text-xs active:scale-95 border border-blue-200 hover:bg-blue-200 transition-colors uppercase italic shadow-sm">＋ 建議項目</button>
@@ -582,31 +528,49 @@
                         </section>
 
                         <section className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-200 space-y-4 text-slate-400 font-bold italic">
-                            <div className="flex justify-between items-center"><h2 className="font-black text-[10px] uppercase tracking-widest italic uppercase">● 現場缺失照片</h2><label className="bg-slate-900 text-white px-4 py-2 rounded-xl text-[10px] font-black cursor-pointer shadow-md active:scale-95 hover:bg-slate-800 transition-colors uppercase">拍照 / 上傳<input type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoUpload} /></label></div>
+                            <div className="flex justify-between items-center"><h2 className="font-black text-[10px] uppercase tracking-widest italic uppercase">● 現場照片紀錄</h2><label className="bg-slate-900 text-white px-4 py-2 rounded-xl text-[10px] font-black cursor-pointer shadow-md active:scale-95 hover:bg-slate-800 transition-colors uppercase">拍照 / 上傳<input type="file" accept="image/*" multiple className="hidden" onChange={handlePhotoUpload} /></label></div>
                             {formData.photos.length > 0 ? (
                                 <div className="grid grid-cols-3 gap-2 pt-2">
                                     {formData.photos.map((p, i) => (
                                         <div key={i} className="relative aspect-square rounded-xl overflow-hidden shadow-sm border group"><img src={p} className="w-full h-full object-cover" /><button onClick={() => setFormData({...formData, photos: formData.photos.filter((_, idx) => idx !== i)})} className="absolute top-1 right-1 bg-red-500 text-white w-5 h-5 rounded-full font-black text-[10px] flex items-center justify-center transition-transform active:scale-110 shadow-lg border border-white">X</button></div>
                                     ))}
                                 </div>
-                            ) : <div className="border-2 border-dashed border-slate-100 rounded-2xl p-8 text-center text-xs tracking-widest uppercase italic opacity-40">No Photos Attached</div>}
+                            ) : <div className="border-2 border-dashed border-slate-100 rounded-2xl p-8 text-center text-xs tracking-widest uppercase italic opacity-40">尚未上傳照片</div>}
                         </section>
 
-                        {/* 總結與評價區塊 */}
+                        {/* --- 升級後的評價選擇區塊 (左右滑動淡化效果) --- */}
                         <section className="bg-slate-900 rounded-[3rem] p-10 space-y-8 text-white shadow-2xl relative overflow-hidden border-t-8 border-red-600 text-center">
                             <div className="space-y-4 relative text-left">
-                                <label className="text-[10px] font-black text-slate-900 uppercase tracking-widest italic uppercase italic tracking-widest">總結</label>
-                                <textarea className="w-full bg-slate-800 border border-slate-700 rounded-3xl p-6 text-sm font-bold text-white min-h-[160px] outline-none focus:border-red-500 placeholder-slate-500 shadow-inner leading-relaxed" placeholder="請輸入對該分店的觀察與改進建議..." value={formData.overallComment} onChange={e => setFormData({...formData, overallComment: e.target.value})} />
+                                <label className="text-xl font-black text-slate-300 uppercase tracking-widest italic uppercase italic tracking-widest">督導建議總結</label>
+                                <textarea className="w-full bg-slate-800 border border-slate-700 rounded-3xl p-6 text-sm font-bold text-white min-h-[160px] outline-none focus:border-red-500 placeholder-slate-500 shadow-inner leading-relaxed" placeholder="請手動輸入對該門店的觀察與改進建議..." value={formData.overallComment} onChange={e => setFormData({...formData, overallComment: e.target.value})} />
                             </div>
                             
-                            <div className="space-y-2 relative">
-                                <h2 className="font-black text-[10px] text-slate-900 uppercase tracking-[0.3em] italic">本月評價</h2>
-                                <select className={`bg-transparent text-[200px] font-black outline-none appearance-none text-center w-full cursor-pointer italic ${getGradeColor(formData.overallScore)} transition-colors`} value={formData.overallScore} onChange={e => setFormData({...formData, overallScore: e.target.value})}>
-                                    {GRADES.map(g => <option key={g} value={g} className="bg-slate-800 text-white">{g}</option>)}
-                                </select>
+                            <div className="space-y-4 relative text-center">
+                                <h2 className="font-black text-2xl text-slate-400 uppercase tracking-[0.3em] italic">給予本月評價</h2>
+                                
+                                {/* 左右滑動選擇器容器 */}
+                                <div className="relative w-full overflow-hidden py-4">
+                                    <div className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar gap-12 items-center justify-start px-[40%] scroll-smooth">
+                                        {GRADES.map(g => (
+                                            <div
+                                                key={g}
+                                                onClick={() => setFormData({...formData, overallScore: g})}
+                                                className={`snap-center shrink-0 cursor-pointer transition-all duration-500 transform ${
+                                                    formData.overallScore === g
+                                                    ? `text-8xl sm:text-9xl font-black ${getGradeColor(g)} opacity-100 scale-110 rotate-[-5deg]`
+                                                    : 'text-4xl sm:text-5xl font-bold text-slate-500 opacity-20 scale-90'
+                                                }`}
+                                            >
+                                                {g}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {/* 滑動提示箭頭 (可選) */}
+                                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-12 h-12 bg-gradient-to-r from-slate-900 to-transparent pointer-events-none"></div>
+                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-12 h-12 bg-gradient-to-l from-slate-900 to-transparent pointer-events-none"></div>
+                                </div>
                             </div>
                             
-                            {/* 更新底部預覽點擊事件 */}
                             <button onClick={() => { setView('report'); window.scrollTo(0, 0); }} className="w-full bg-white text-slate-900 py-6 rounded-[2rem] font-black text-xl shadow-xl active:scale-95 uppercase italic hover:bg-slate-50 transition-all uppercase tracking-tighter">提交巡檢報告</button>
                         </section>
                     </div>
@@ -619,12 +583,3 @@
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
