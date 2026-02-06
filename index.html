@@ -489,9 +489,9 @@
                                         </div>
                                     )}
                                     <div className="bg-blue-50 border-l-4 border-blue-600 p-8 space-y-3 text-slate-700 shadow-inner avoid-break">
-                                        <h3 className="font-black text-blue-900 text-xs uppercase tracking-widest opacity-60 uppercase">督導意見總結</h3>
-                                        <h3 className="font-black text-blue-900 text-lg uppercase tracking-widest">督導總結建議</h3>
-                                        <p className="leading-relaxed font-bold break-words whitespace-pre-wrap mt-2 text-base">{String(r.overallComment || "無特殊待改善項目。")}</p>
+                                        <h3 className="font-black text-blue-900 text-xs uppercase tracking-widest opacity-60 uppercase">總結建議及改善</h3>
+                                        <h3 className="font-black text-blue-900 text-lg uppercase tracking-widest">總結建議及改善</h3>
+                                        <p className="leading-relaxed font-bold break-words whitespace-pre-wrap mt-2 text-base">{String(r.overallComment || "無待改善項目。")}</p>
                                     </div>
                                 </div>
 
@@ -536,7 +536,7 @@
                         {/* 基本資訊 */}
                         <section className="bg-white rounded-[2.5rem] p-6 sm:p-8 shadow-sm border border-slate-200 space-y-6 text-slate-900">
                             <div className="space-y-4">
-                                <div className="flex items-center gap-2 px-1 text-[10px] font-black text-slate-400 uppercase tracking-widest border-l-2 border-blue-500 pl-2 uppercase">門店基本資訊</div>
+                                <div className="flex items-center gap-2 px-1 text-[10px] font-black text-slate-400 uppercase tracking-widest border-l-2 border-blue-500 pl-2 uppercase">分店基本資訊</div>
                                 <div className="grid grid-cols-2 gap-3">
                                     <select className="col-span-2 bg-slate-50 border-none rounded-2xl p-4 font-black text-sm outline-none cursor-pointer shadow-inner" value={formData.storeName} onChange={e => setFormData({...formData, storeName: e.target.value})}>
                                         {stores.map(s => <option key={s} value={s}>{s}</option>)}
@@ -552,7 +552,7 @@
                             <div className="flex justify-between items-center">
                                 <h2 className="font-black text-xs uppercase tracking-widest text-orange-600 flex items-center gap-2 uppercase">● 前期改善追蹤</h2>
                                 {formData.prevImprovements.length > 0 && (
-                                    <span className="text-[10px] font-bold bg-orange-200 text-orange-700 px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-sm">自動帶入項目</span>
+                                    <span className="text-[10px] font-bold bg-orange-200 text-orange-700 px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-sm">前幾期未改善就會一直持續追蹤到改善為止</span>
                                 )}
                             </div>
                             <div className="flex gap-2">
@@ -633,7 +633,7 @@
                         <section className="bg-slate-900 rounded-[3rem] p-10 space-y-8 text-white shadow-2xl relative overflow-hidden border-t-8 border-red-600 text-center">
                             <div className="space-y-4 relative text-left">
                                 <label className="text-2xl font-black text-slate-300 uppercase tracking-widest uppercase tracking-widest">督導建議總結</label>
-                                <textarea className="w-full bg-slate-800 border border-slate-700 rounded-3xl p-6 text-sm font-bold text-white min-h-[160px] outline-none focus:border-red-500 placeholder-slate-500 shadow-inner leading-relaxed" placeholder="請手動輸入對該門店的觀察與改進建議..." value={formData.overallComment} onChange={e => setFormData({...formData, overallComment: e.target.value})} />
+                                <textarea className="w-full bg-slate-800 border border-slate-700 rounded-3xl p-6 text-sm font-bold text-white min-h-[160px] outline-none focus:border-red-500 placeholder-slate-500 shadow-inner leading-relaxed" placeholder="輸入對該店的觀察與改進建議..." value={formData.overallComment} onChange={e => setFormData({...formData, overallComment: e.target.value})} />
                             </div>
                             
                             <div className="space-y-4 relative text-center">
@@ -664,3 +664,4 @@
     </script>
 </body>
 </html>
+
