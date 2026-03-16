@@ -60,7 +60,7 @@
 
         const appId = 'audit-system-v1'; 
 
-        // 圖片壓縮函數
+        // 圖片壓縮函數：解決儲存過大問題
         const compressImage = (base64Str, maxWidth = 800, maxHeight = 800) => {
             return new Promise((resolve) => {
                 const img = new Image();
@@ -123,7 +123,7 @@
 
             const showMsg = (text) => setMessageBox({ show: true, text, onConfirm: null });
 
-            const MessageBox = () => messageBox.show && (
+            const MessageBoxComponent = () => messageBox.show && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6 no-print text-slate-900">
                     <div className="bg-white rounded-3xl p-8 max-sm w-full shadow-2xl space-y-6 text-center">
                         <p className="font-bold text-slate-700 leading-relaxed break-words whitespace-pre-wrap">{messageBox.text}</p>
@@ -176,6 +176,7 @@
             useEffect(() => {
                 if (!user || !db) return;
                 const { doc, collection, onSnapshot, setDoc } = window.FB;
+
                 const storeRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'stores');
                 const unsubscribeStores = onSnapshot(storeRef, (s) => {
                     if (s.exists()) setStores(s.data().list || []);
@@ -210,8 +211,11 @@
                 }
             }, [stores, checklistTemplate, view]);
 
+            // 自動帶入上期缺失 (編輯模式時暫停帶入)
             useEffect(() => {
                 if (view === 'form' && formData.storeName && historyRecords.length > 0) {
+                    if (selectedRecord) return; // 編輯狀態不觸發自動帶入
+
                     const lastRecord = historyRecords.find(r => r.storeName === formData.storeName);
                     if (lastRecord) {
                         const newTasksFromLastTime = (lastRecord.currentDeficiencies || []).map(def => ({ id: def.id + "_新帶入", task: def.task, status: 'pending' }));
@@ -220,9 +224,8 @@
                         setFormData(prev => ({ ...prev, prevImprovements: combinedTasks }));
                     } else { setFormData(prev => ({ ...prev, prevImprovements: [] })); }
                 }
-            }, [formData.storeName, historyRecords.length, view]);
+            }, [formData.storeName, historyRecords.length, view, selectedRecord]);
 
-            // 確保分類常數已定義 (解決 Reference Error)
             const categories = useMemo(() => {
                 const cats = checklistTemplate.map(i => i.category);
                 return [...new Set(cats)];
@@ -252,19 +255,43 @@
                 }
             };
 
+            // ★ 儲存/更新邏輯
             const handleSaveInspection = async () => {
                 if (!user || !db) return;
                 if (!formData.supervisor) return showMsg("請填寫營運總監姓名");
+                
                 try {
-                    const docRef = await window.FB.addDoc(window.FB.collection(db, 'artifacts', appId, 'public', 'data', 'history'), { ...formData, createdAt: new Date().toISOString() });
-                    const savedData = { ...formData, id: docRef.id };
-                    setSelectedRecord(savedData);
-                    setMessageBox({ 
-                        show: true, 
-                        text: "🎉 巡檢紀錄已成功儲存至雲端系統！\n您可以點擊確定進入報表頁面。",
-                        onConfirm: () => { setView('report'); window.scrollTo(0, 0); }
-                    });
-                } catch (e) { showMsg("儲存失敗: " + e.message); }
+                    const { addDoc, updateDoc, doc, collection } = window.FB;
+                    
+                    if (selectedRecord && selectedRecord.id) {
+                        // 【編輯覆蓋模式】
+                        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'history', selectedRecord.id);
+                        const dataToSave = { ...formData, updatedAt: new Date().toISOString() };
+                        delete dataToSave.id; // 避免將 id 寫入內層
+                        
+                        await updateDoc(docRef, dataToSave);
+                        setSelectedRecord({ ...formData, id: selectedRecord.id });
+                        setMessageBox({ 
+                            show: true, 
+                            text: "🎉 巡檢紀錄已成功更新！\n您可以點擊確定預覽報表。",
+                            onConfirm: () => { setView('report'); window.scrollTo(0, 0); }
+                        });
+                    } else {
+                        // 【全新儲存模式】
+                        const historyCol = collection(db, 'artifacts', appId, 'public', 'data', 'history');
+                        const dataToSave = { ...formData, createdAt: new Date().toISOString() };
+                        delete dataToSave.id;
+
+                        const docRef = await addDoc(historyCol, dataToSave);
+                        const savedData = { ...formData, id: docRef.id };
+                        setSelectedRecord(savedData);
+                        setMessageBox({ 
+                            show: true, 
+                            text: "🎉 巡檢紀錄已成功儲存至雲端系統！\n您可以點擊確定進入報表頁面。",
+                            onConfirm: () => { setView('report'); window.scrollTo(0, 0); }
+                        });
+                    }
+                } catch (e) { showMsg("儲存/更新失敗: " + e.message); }
             };
 
             const getMonthFromDate = (dateStr) => {
@@ -306,7 +333,7 @@
 
             if (view === 'manage') return (
                 <div className="min-h-screen bg-slate-50 pb-20 text-slate-900">
-                    <MessageBox />
+                    <MessageBoxComponent />
                     <nav className="bg-slate-900 text-white p-5 sticky top-0 z-50 flex justify-between items-center shadow-xl">
                         <div className="font-black text-xl uppercase tracking-tighter">系統管理</div>
                         <button onClick={() => { setView('form'); window.scrollTo(0,0); }} className="bg-blue-600 px-6 py-2 rounded-xl font-bold text-sm text-white">返回首頁</button>
@@ -359,7 +386,7 @@
 
             if (view === 'history') return (
                 <div className="min-h-screen bg-slate-50 pb-24 text-slate-900">
-                    <MessageBox />
+                    <MessageBoxComponent />
                     <nav className="bg-slate-900 text-white p-5 sticky top-0 z-50 flex justify-between items-center shadow-xl">
                         <div className="text-blue-400 font-black text-xl uppercase tracking-widest">歷史紀錄</div>
                         <button onClick={() => { setView('form'); window.scrollTo(0,0); }} className="bg-slate-800 px-5 py-2 rounded-xl text-sm font-bold text-white uppercase tracking-tighter">返回首頁</button>
@@ -382,7 +409,12 @@
                     </div>
                     <div className="max-w-2xl mx-auto p-4 space-y-4">
                         {filteredHistoryRecords.length === 0 ? <div className="text-center py-20 text-slate-300 font-bold border-2 border-dashed rounded-3xl uppercase tracking-widest">尚未有符合條件的紀錄</div> : filteredHistoryRecords.map(r => (
-                            <div key={r.id} onClick={() => { setSelectedRecord(r); setView('report'); window.scrollTo(0, 0); }} className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex justify-between items-center cursor-pointer active:scale-95 transition-all">
+                            <div key={r.id} onClick={() => { 
+                                setSelectedRecord(r); 
+                                setFormData(r); // 將選中紀錄的資料載入表單，支援編輯
+                                setView('report'); 
+                                window.scrollTo(0, 0); 
+                            }} className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex justify-between items-center cursor-pointer active:scale-95 transition-all">
                                 <div className="flex-1">
                                     <div className="flex flex-wrap items-center gap-2 mb-1">
                                         <h4 className="font-black text-lg text-slate-800">{String(r.storeName)}</h4>
@@ -397,40 +429,32 @@
                 </div>
             );
 
-            // 3. 報表視圖 (完美修正右上角評價排版)
             if (view === 'report') {
                 const r = selectedRecord || { ...formData, id: "預覽-" + new Date().getTime() };
                 const recCategories = [...new Set((r.activeChecklist || []).map(i => i.category))];
                 const reportMonth = getMonthFromDate(r.date);
                 return (
                     <div className="min-h-screen bg-white sm:bg-slate-100 p-0 sm:p-8">
-                        <MessageBox />
+                        <MessageBoxComponent />
                         <div className="max-w-4xl mx-auto bg-white shadow-2xl overflow-hidden print:shadow-none text-slate-900 border-b-8 border-slate-900 print-shadow-none">
-                            
-                            {/* --- 優化：報表頂部佈局，評價移至完全右上角 --- */}
                             <div className="bg-white p-6 sm:p-10 border-b border-slate-100">
                                 <div className="flex justify-between items-start">
-                                    {/* 左側：分店名稱與日期 */}
                                     <div className="flex-1 pr-4">
                                         <h1 className="text-4xl sm:text-5xl font-black text-slate-700 uppercase tracking-tighter mb-3 break-words leading-tight">{String(r.storeName)}</h1>
                                         <p className="text-blue-600 font-bold tracking-[0.2em] sm:tracking-[0.3em] uppercase text-xs sm:text-sm">{reportMonth} 巡視報告 · {String(r.date)}</p>
                                     </div>
-                                    {/* 右側：本月評價 (完全靠右上) */}
                                     <div className="flex flex-col items-center sm:items-end shrink-0">
                                         <span className="text-slate-400 text-[10px] sm:text-xs font-black uppercase tracking-widest sm:mb-1">本月評價</span>
                                         <div className={`text-[80px] sm:text-[140px] font-black tracking-tighter leading-none ${getGradeColor(r.overallScore)}`}>{String(r.overallScore)}</div>
                                     </div>
                                 </div>
-                                
-                                {/* 獨立成一行的按鈕群組 */}
                                 <div className="no-print mt-6 sm:mt-8 flex flex-wrap gap-2 w-full justify-start sm:justify-end">
                                     <button onClick={() => { setView('form'); window.scrollTo(0,0); }} className="flex-1 sm:flex-none bg-slate-700 px-4 py-3 rounded-xl text-xs font-bold text-white uppercase shadow-md active:scale-95 transition-all">返回修改</button>
-                                    {!selectedRecord && <button onClick={handleSaveInspection} className="flex-1 sm:flex-none bg-blue-500 px-4 py-3 rounded-xl text-xs font-bold text-white uppercase shadow-md active:scale-95 transition-all">儲存紀錄</button>}
+                                    <button onClick={handleSaveInspection} className="flex-1 sm:flex-none bg-blue-500 px-4 py-3 rounded-xl text-xs font-bold text-white uppercase shadow-md active:scale-95 transition-all">{selectedRecord ? '儲存修改' : '儲存紀錄'}</button>
                                     <button onClick={() => { setSelectedRecord(null); setFormData(initialFormData); setView('form'); window.scrollTo(0,0); }} className="flex-1 sm:flex-none bg-slate-800 px-4 py-3 rounded-xl text-xs font-bold text-white uppercase shadow-md active:scale-95 transition-all">新巡檢</button>
                                     <button onClick={() => window.print()} className="w-full sm:w-auto bg-red-600 px-6 py-3 rounded-xl text-xs font-bold text-white flex items-center justify-center gap-2 uppercase font-black shadow-md active:scale-95 transition-all">列印報告</button>
                                 </div>
                             </div>
-
                             <div className="p-6 sm:p-10 space-y-12">
                                 <div className="grid grid-cols-2 border-2 border-slate-900 text-slate-700 shadow-sm rounded-lg overflow-hidden">
                                     <div className="flex flex-col sm:flex-row sm:divide-x divide-slate-200 border-r border-slate-900">
@@ -502,7 +526,7 @@
 
             return (
                 <div className="min-h-screen bg-slate-100 pb-32 font-sans text-slate-900">
-                    <MessageBox />
+                    <MessageBoxComponent />
                     <nav className="bg-slate-900 text-white p-5 sticky top-0 z-40 flex justify-between items-center shadow-lg">
                         <div className="flex items-center gap-3"><div className="bg-red-600 px-3 py-1 rounded-xl font-black text-sm uppercase text-white tracking-widest shadow-md">饗麻饗辣</div></div>
                         <div className="flex gap-2 text-white">
@@ -514,7 +538,7 @@
                     <div className="max-w-xl mx-auto p-4 space-y-6 mt-4 overflow-hidden">
                         <section className="bg-white rounded-[2.5rem] p-6 sm:p-8 shadow-sm border border-slate-200 space-y-6 text-slate-900">
                             <div className="space-y-4">
-                                <div className="flex items-center gap-2 px-1 text-[10px] font-black text-slate-400 uppercase tracking-widest border-l-2 border-blue-500 pl-2 uppercase">分店基本資訊</div>
+                                <div className="flex items-center gap-2 px-1 text-[10px] font-black text-slate-400 uppercase tracking-widest border-l-2 border-blue-500 pl-2 uppercase">門店基本資訊</div>
                                 <div className="grid grid-cols-2 gap-3">
                                     <select className="col-span-2 bg-slate-50 border-none rounded-2xl p-4 font-black text-sm outline-none cursor-pointer shadow-inner" value={formData.storeName} onChange={e => setFormData({...formData, storeName: e.target.value})}>
                                         {stores.map(s => <option key={s} value={s}>{s}</option>)}
@@ -525,7 +549,7 @@
                             </div>
                         </section>
                         <section className="bg-orange-50 rounded-[2.5rem] p-6 sm:p-8 shadow-sm border border-orange-100 space-y-6 overflow-hidden text-slate-900">
-                            <div className="flex justify-between items-center"><h2 className="font-black text-xs uppercase tracking-widest text-orange-600 flex items-center gap-2 uppercase">● 前期改善追蹤</h2>{formData.prevImprovements.length > 0 && <span className="text-[10px] font-bold bg-orange-200 text-orange-700 px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-sm">自動帶入上個月為改善項目</span>}</div>
+                            <div className="flex justify-between items-center"><h2 className="font-black text-xs uppercase tracking-widest text-orange-600 flex items-center gap-2 uppercase">● 前期改善追蹤</h2>{formData.prevImprovements.length > 0 && <span className="text-[10px] font-bold bg-orange-200 text-orange-700 px-2 py-0.5 rounded-full uppercase tracking-tighter shadow-sm">帶入項目</span>}</div>
                             <div className="flex gap-2">
                                 <input type="text" placeholder="手動新增追蹤項目..." className="flex-1 min-w-0 bg-white border-none rounded-2xl px-5 py-4 text-sm font-bold outline-none shadow-sm" value={prevTaskInput} onChange={e => setPrevTaskInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && addPrevTask()} />
                                 <button onClick={addPrevTask} className="bg-orange-500 text-white px-5 rounded-2xl shadow-lg font-black text-xl flex-shrink-0 active:scale-90 transition-transform">＋</button>
@@ -581,7 +605,7 @@
                         <section className="bg-slate-900 rounded-[3rem] p-10 space-y-8 text-white shadow-2xl relative overflow-hidden border-t-8 border-red-600 text-center">
                             <div className="space-y-4 relative text-left"><label className="text-2xl font-black text-slate-300 uppercase tracking-widest uppercase tracking-widest">總監建議總結</label><textarea className="w-full bg-slate-800 border border-slate-700 rounded-3xl p-6 text-sm font-bold text-white min-h-[160px] outline-none focus:border-red-500 placeholder-slate-500 shadow-inner leading-relaxed" placeholder="請手動輸入對該門店的觀察與改進建議..." value={formData.overallComment} onChange={e => setFormData({...formData, overallComment: e.target.value})} /></div>
                             <div className="space-y-4 relative text-center"><h2 className="font-black text-2xl text-slate-400 uppercase tracking-[0.3em]">給予本月評價</h2><div className="relative w-full py-4"><select className={`bg-transparent text-[150px] sm:text-[250px] font-black outline-none appearance-none text-center w-full cursor-pointer ${getGradeColor(formData.overallScore)} transition-all duration-300`} value={formData.overallScore} onChange={e => setFormData({...formData, overallScore: e.target.value})}>{GRADES.map(g => (<option key={g} value={g} className="bg-slate-800 text-white text-2xl font-bold">{g}</option>))}</select></div></div>
-                            <button onClick={handleSaveInspection} className="w-full bg-white text-slate-900 py-6 rounded-[2rem] font-black text-xl shadow-xl active:scale-95 uppercase hover:bg-slate-50 transition-all uppercase tracking-tighter">提交巡檢報告</button>
+                            <button onClick={() => { setView('report'); window.scrollTo(0, 0); }} className="w-full bg-white text-slate-900 py-6 rounded-[2rem] font-black text-xl shadow-xl active:scale-95 hover:bg-slate-50 transition-all uppercase tracking-tighter">預覽完整報表</button>
                         </section>
                     </div>
                 </div>
