@@ -4,12 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>饗麻饗辣分店巡視系統</title>
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- React & ReactDOM CDN -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <!-- Babel for JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
     <style>
@@ -30,12 +27,14 @@
         .break-words { overflow-wrap: break-word; word-wrap: break-word; word-break: break-all; }
         input, textarea { max-width: 100%; }
         select, input, textarea { font-size: 16px !important; }
+        
+        /* 拖曳時的視覺效果 */
+        .dragging { opacity: 0.5; transform: scale(0.98); }
     </style>
 </head>
 <body class="bg-slate-100 text-slate-900">
     <div id="root"></div>
 
-    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -44,13 +43,11 @@
         window.FB = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, getFirestore, doc, setDoc, getDoc, collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, arrayUnion, arrayRemove };
         window.dispatchEvent(new Event('firebase-sdk-loaded'));
     </script>
-    
-    <!-- 引入 Lucide 圖示中的 GripVertical 作為拖曳把手 -->
-    <script src="https://unpkg.com/lucide@latest"></script>
 
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
-        // 為了在沒有 npm 的環境下使用 GripVertical SVG，定義簡單的圖示元件
+
+        // 拖曳圖示定義
         const GripIcon = () => (
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400 cursor-grab active:cursor-grabbing hover:text-slate-600 transition-colors">
                 <circle cx="9" cy="12" r="1"/><circle cx="9" cy="5" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="19" r="1"/>
@@ -69,7 +66,7 @@
 
         const appId = 'audit-system-v1'; 
 
-        // 圖片壓縮函數：進一步加強力道，以應付 20 張照片不超過 1MB
+        // 圖片壓縮函數 (針對 20 張優化)
         const compressImage = (base64Str, maxWidth = 400, maxHeight = 400) => {
             return new Promise((resolve) => {
                 const img = new Image();
@@ -87,7 +84,7 @@
                     canvas.height = height;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, width, height);
-                    resolve(canvas.toDataURL('image/jpeg', 0.4)); // 壓縮畫質降至 0.4
+                    resolve(canvas.toDataURL('image/jpeg', 0.4));
                 };
             });
         };
@@ -102,9 +99,13 @@
             const [selectedRecord, setSelectedRecord] = useState(null);
             const [checklistTemplate, setChecklistTemplate] = useState([]);
             
+            // 歷史紀錄篩選
             const [historyFilterStore, setHistoryFilterStore] = useState("");
             const [historyFilterYear, setHistoryFilterYear] = useState("");
             const [historyFilterMonth, setHistoryFilterMonth] = useState("");
+
+            // 管理介面收合狀態 (紀錄哪些類別是展開的)
+            const [expandedCategories, setExpandedCategories] = useState({});
 
             const [newStoreInput, setNewStoreInput] = useState("");
             const [isAddingStore, setIsAddingStore] = useState(false);
@@ -114,7 +115,7 @@
 
             const [messageBox, setMessageBox] = useState({ show: false, text: '', onConfirm: null });
 
-            // 拖曳排序專用的 State
+            // 拖曳狀態
             const [draggingCategory, setDraggingCategory] = useState(null);
             const [draggingItem, setDraggingItem] = useState(null);
 
@@ -189,7 +190,6 @@
             useEffect(() => {
                 if (!user || !db) return;
                 const { doc, collection, onSnapshot, setDoc } = window.FB;
-
                 const storeRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'stores');
                 const unsubscribeStores = onSnapshot(storeRef, (s) => {
                     if (s.exists()) setStores(s.data().list || []);
@@ -224,28 +224,20 @@
                 }
             }, [stores, checklistTemplate, view]);
 
-            useEffect(() => {
-                if (view === 'form' && formData.storeName && historyRecords.length > 0) {
-                    if (selectedRecord) return; // 編輯狀態不觸發自動帶入
-
-                    const lastRecord = historyRecords.find(r => r.storeName === formData.storeName);
-                    if (lastRecord) {
-                        const newTasksFromLastTime = (lastRecord.currentDeficiencies || []).map(def => ({ id: def.id + "_新帶入", task: def.task, status: 'pending' }));
-                        const unresolvedTasksFromLastTime = (lastRecord.prevImprovements || []).filter(item => item.status === 'pending').map(item => ({ ...item, id: item.id + "_持續未改善" }));
-                        const combinedTasks = [...unresolvedTasksFromLastTime, ...newTasksFromLastTime];
-                        setFormData(prev => ({ ...prev, prevImprovements: combinedTasks }));
-                    } else { setFormData(prev => ({ ...prev, prevImprovements: [] })); }
-                }
-            }, [formData.storeName, historyRecords.length, view, selectedRecord]);
-
             const categories = useMemo(() => {
                 const cats = checklistTemplate.map(i => i.category);
                 return [...new Set(cats)];
             }, [checklistTemplate]);
 
-            // ===== 拖曳排序相關邏輯 (Drag & Drop) =====
+            // --- 拖曳與收合邏輯 ---
             
-            // 處理「大分類」的拖曳
+            const toggleCategory = (cat) => {
+                setExpandedCategories(prev => ({
+                    ...prev,
+                    [cat]: !prev[cat]
+                }));
+            };
+
             const handleCategoryDragStart = (e, cat) => {
                 setDraggingCategory(cat);
                 e.dataTransfer.effectAllowed = 'move';
@@ -263,7 +255,6 @@
                 cats.splice(dragIdx, 1);
                 cats.splice(targetIdx, 0, draggingCategory);
                 
-                // 根據新的類別順序，重組整個 checklistTemplate
                 const newTemplate = cats.flatMap(c => checklistTemplate.filter(i => i.category === c));
                 setChecklistTemplate(newTemplate);
                 setDraggingCategory(null);
@@ -272,9 +263,8 @@
                 await window.FB.updateDoc(templateRef, { items: newTemplate });
             };
 
-            // 處理「小細項」的拖曳
             const handleItemDragStart = (e, item) => {
-                e.stopPropagation(); // 防止觸發大分類的拖曳事件
+                e.stopPropagation();
                 setDraggingItem(item);
                 e.dataTransfer.effectAllowed = 'move';
             };
@@ -282,16 +272,13 @@
             const handleItemDrop = async (e, targetItem) => {
                 e.preventDefault();
                 e.stopPropagation();
-                // 確保只能在同一個大分類底下拖曳排序
                 if (!draggingItem || draggingItem.id === targetItem.id || draggingItem.category !== targetItem.category) {
                     setDraggingItem(null);
                     return;
                 }
-                
                 const newTemplate = [...checklistTemplate];
                 const dragIdx = newTemplate.findIndex(i => i.id === draggingItem.id);
                 const targetIdx = newTemplate.findIndex(i => i.id === targetItem.id);
-                
                 newTemplate.splice(dragIdx, 1);
                 newTemplate.splice(targetIdx, 0, draggingItem);
                 
@@ -302,11 +289,9 @@
                 await window.FB.updateDoc(templateRef, { items: newTemplate });
             };
 
-            const handleDragOver = (e) => {
-                e.preventDefault(); // 必須 preventDefault 才能觸發 Drop
-            };
+            const handleDragOver = (e) => e.preventDefault();
 
-            // =====================================
+            // --- 核心功能函數 ---
 
             const addPrevTask = () => {
                 if (!prevTaskInput.trim()) return;
@@ -342,39 +327,32 @@
             const handleSaveInspection = async () => {
                 if (!user || !db) return;
                 if (!formData.supervisor) return showMsg("請填寫營運總監姓名");
-                
                 const approximateSize = JSON.stringify(formData).length;
                 if (approximateSize > 950000) {
-                    showMsg("儲存失敗：照片檔案總和過大！\n為符合雲端資料庫 1MB 的限制，請刪除部分照片後再試一次。");
+                    showMsg("儲存失敗：照片檔案總和過大！\n請刪除部分照片後再試一次。");
                     return;
                 }
-                
                 try {
                     const { addDoc, updateDoc, doc, collection } = window.FB;
-                    
                     if (selectedRecord && selectedRecord.id) {
                         const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'history', selectedRecord.id);
                         const dataToSave = { ...formData, updatedAt: new Date().toISOString() };
                         delete dataToSave.id; 
-                        
                         await updateDoc(docRef, dataToSave);
                         setSelectedRecord({ ...formData, id: selectedRecord.id });
                         setMessageBox({ 
-                            show: true, 
-                            text: "🎉 巡檢紀錄已成功更新！\n您可以點擊確定預覽報表。",
+                            show: true, text: "🎉 巡檢紀錄已成功更新！",
                             onConfirm: () => { setView('report'); window.scrollTo(0, 0); }
                         });
                     } else {
                         const historyCol = collection(db, 'artifacts', appId, 'public', 'data', 'history');
                         const dataToSave = { ...formData, createdAt: new Date().toISOString() };
                         delete dataToSave.id;
-
                         const docRef = await addDoc(historyCol, dataToSave);
                         const savedData = { ...formData, id: docRef.id };
                         setSelectedRecord(savedData);
                         setMessageBox({ 
-                            show: true, 
-                            text: "🎉 巡檢紀錄已成功儲存至雲端系統！\n您可以點擊確定進入報表頁面。",
+                            show: true, text: "🎉 巡檢紀錄已成功儲存至雲端系統！",
                             onConfirm: () => { setView('report'); window.scrollTo(0, 0); }
                         });
                     }
@@ -418,6 +396,7 @@
                 </div>
             );
 
+            // 1. 管理設定頁面 (含收合功能)
             if (view === 'manage') return (
                 <div className="min-h-screen bg-slate-50 pb-20 text-slate-900">
                     <MessageBoxComponent />
@@ -447,47 +426,61 @@
                                 </div>
                             ) : <button onClick={() => setIsAddingStore(true)} className="w-full border-2 border-dashed border-slate-200 py-3 rounded-2xl text-slate-400 font-bold text-sm hover:border-red-500 transition-colors uppercase">+ 新增分店</button>}
                         </section>
-
+                        
                         <section className="space-y-4">
                             <div className="px-2">
                                 <h2 className="font-black text-slate-800 text-lg text-blue-600 border-l-4 border-blue-600 pl-3">巡檢細項編輯</h2>
-                                <p className="text-xs font-bold text-slate-400 mt-2">提示：按住項目旁的把手，可以上下拖曳調整順序</p>
+                                <p className="text-xs font-bold text-slate-400 mt-2">提示：收起大項後可快速拖曳排序；點擊標題可展開/收回細項。</p>
                             </div>
-                            {categories.map(cat => (
-                                <div 
-                                    key={cat} 
-                                    draggable="true"
-                                    onDragStart={(e) => handleCategoryDragStart(e, cat)}
-                                    onDragOver={handleDragOver}
-                                    onDrop={(e) => handleCategoryDrop(e, cat)}
-                                    className={`bg-white p-5 rounded-3xl shadow-sm border border-slate-100 space-y-3 transition-opacity ${draggingCategory === cat ? 'opacity-30' : ''}`}
-                                >
-                                    <h3 className="font-black text-red-600 text-lg uppercase tracking-widest flex items-center gap-2 select-none">
-                                        <GripIcon />
-                                        {cat}
-                                    </h3>
-                                    <div className="space-y-2 pl-2">
-                                        {checklistTemplate.filter(i => i.category === cat).map(item => (
-                                            <div 
-                                                key={item.id} 
-                                                draggable="true"
-                                                onDragStart={(e) => handleItemDragStart(e, item)}
-                                                onDragOver={handleDragOver}
-                                                onDrop={(e) => handleItemDrop(e, item)}
-                                                className={`flex items-start gap-2 group border-b border-slate-50 pb-2 transition-opacity ${draggingItem?.id === item.id ? 'opacity-30 bg-slate-50' : ''}`}
-                                            >
-                                                <div className="pt-2"><GripIcon /></div>
-                                                <p className="flex-1 text-sm font-medium leading-relaxed break-words py-1 select-none">{item.item}</p>
-                                                <button onClick={async () => { if(confirm(`確定刪除項目：「${item.item}」？`)) { await window.FB.updateDoc(window.FB.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'template'), { items: window.FB.arrayRemove(item) }); } }} className="text-red-300 hover:text-red-500 font-bold text-[14px] uppercase shrink-0 py-1" >刪除</button>
-                                            </div>
-                                        ))}
-                                        <div className="flex gap-2 pt-2">
-                                            <input type="text" placeholder="新增細項描述..." className="flex-1 bg-slate-50 border-none rounded-lg px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-blue-200 shadow-inner" value={newItemInputs[cat] || ""} onChange={(e) => setNewItemInputs({ ...newItemInputs, [cat]: e.target.value })} />
-                                            <button onClick={async () => { const text = newItemInputs[cat]; if(text && text.trim()){ await window.FB.updateDoc(window.FB.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'template'), { items: window.FB.arrayUnion({ id: Date.now() + Math.random(), category: cat, item: text.trim() }) }); setNewItemInputs({ ...newItemInputs, [cat]: "" }); } }} className="bg-slate-900 text-white px-4 py-2 rounded-lg text-xs font-bold shrink-0 active:scale-95 transition-transform uppercase">新增</button>
+                            {categories.map(cat => {
+                                const isExpanded = expandedCategories[cat];
+                                return (
+                                    <div 
+                                        key={cat} 
+                                        draggable="true"
+                                        onDragStart={(e) => handleCategoryDragStart(e, cat)}
+                                        onDragOver={handleDragOver}
+                                        onDrop={(e) => handleCategoryDrop(e, cat)}
+                                        className={`bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden transition-all ${draggingCategory === cat ? 'opacity-30' : ''}`}
+                                    >
+                                        <div 
+                                            onClick={() => toggleCategory(cat)}
+                                            className="p-5 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
+                                        >
+                                            <h3 className="font-black text-red-600 text-lg uppercase tracking-widest flex items-center gap-3 select-none">
+                                                <GripIcon />
+                                                {cat}
+                                            </h3>
+                                            <span className="text-xs font-black text-slate-400 uppercase">
+                                                {isExpanded ? "收回細項 ▲" : `展開細項 (${checklistTemplate.filter(i => i.category === cat).length}) ▼`}
+                                            </span>
                                         </div>
+
+                                        {isExpanded && (
+                                            <div className="px-5 pb-5 pt-2 border-t border-slate-50 space-y-2">
+                                                {checklistTemplate.filter(i => i.category === cat).map(item => (
+                                                    <div 
+                                                        key={item.id} 
+                                                        draggable="true"
+                                                        onDragStart={(e) => handleItemDragStart(e, item)}
+                                                        onDragOver={handleDragOver}
+                                                        onDrop={(e) => handleItemDrop(e, item)}
+                                                        className={`flex items-start gap-2 group border-b border-slate-50 pb-2 transition-opacity ${draggingItem?.id === item.id ? 'opacity-30 bg-slate-50' : ''}`}
+                                                    >
+                                                        <div className="pt-2"><GripIcon /></div>
+                                                        <p className="flex-1 text-sm font-medium leading-relaxed break-words py-1 select-none">{item.item}</p>
+                                                        <button onClick={async (e) => { e.stopPropagation(); if(confirm(`確定刪除細項？`)) { await window.FB.updateDoc(window.FB.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'template'), { items: window.FB.arrayRemove(item) }); } }} className="text-red-300 hover:text-red-500 font-bold text-xs px-1 uppercase" >刪除</button>
+                                                    </div>
+                                                ))}
+                                                <div className="flex gap-2 pt-4">
+                                                    <input type="text" placeholder="新增細項描述..." className="flex-1 bg-slate-50 border-none rounded-lg px-3 py-2 text-xs outline-none focus:ring-1 focus:ring-blue-200 shadow-inner" value={newItemInputs[cat] || ""} onChange={(e) => setNewItemInputs({ ...newItemInputs, [cat]: e.target.value })} />
+                                                    <button onClick={async (e) => { e.stopPropagation(); const text = newItemInputs[cat]; if(text && text.trim()){ await window.FB.updateDoc(window.FB.doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'template'), { items: window.FB.arrayUnion({ id: Date.now() + Math.random(), category: cat, item: text.trim() }) }); setNewItemInputs({ ...newItemInputs, [cat]: "" }); } }} className="bg-slate-900 text-white px-4 py-2 rounded-lg text-xs font-bold shrink-0 active:scale-95 transition-transform">新增</button>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </section>
                     </div>
                 </div>
@@ -520,7 +513,7 @@
                         {filteredHistoryRecords.length === 0 ? <div className="text-center py-20 text-slate-300 font-bold border-2 border-dashed rounded-3xl uppercase tracking-widest">尚未有符合條件的紀錄</div> : filteredHistoryRecords.map(r => (
                             <div key={r.id} onClick={() => { 
                                 setSelectedRecord(r); 
-                                setFormData(r); // 將選中紀錄的資料載入表單，支援編輯
+                                setFormData(r); 
                                 setView('report'); 
                                 window.scrollTo(0, 0); 
                             }} className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex justify-between items-center cursor-pointer active:scale-95 transition-all">
@@ -713,7 +706,7 @@
                         <section className="bg-slate-900 rounded-[3rem] p-10 space-y-8 text-white shadow-2xl relative overflow-hidden border-t-8 border-red-600 text-center">
                             <div className="space-y-4 relative text-left"><label className="text-2xl font-black text-slate-300 uppercase tracking-widest uppercase tracking-widest">督導建議總結</label><textarea className="w-full bg-slate-800 border border-slate-700 rounded-3xl p-6 text-sm font-bold text-white min-h-[160px] outline-none focus:border-red-500 placeholder-slate-500 shadow-inner leading-relaxed" placeholder="請手動輸入對該門店的觀察與改進建議..." value={formData.overallComment} onChange={e => setFormData({...formData, overallComment: e.target.value})} /></div>
                             <div className="space-y-4 relative text-center"><h2 className="font-black text-2xl text-slate-400 uppercase tracking-[0.3em]">給予本月評價</h2><div className="relative w-full py-4"><select className={`bg-transparent text-[150px] sm:text-[250px] font-black outline-none appearance-none text-center w-full cursor-pointer ${getGradeColor(formData.overallScore)} transition-all duration-300`} value={formData.overallScore} onChange={e => setFormData({...formData, overallScore: e.target.value})}>{GRADES.map(g => (<option key={g} value={g} className="bg-slate-800 text-white text-2xl font-bold">{g}</option>))}</select></div></div>
-                            <button onClick={() => { setView('report'); window.scrollTo(0, 0); }} className="w-full bg-white text-slate-900 py-6 rounded-[2rem] font-black text-xl shadow-xl active:scale-95 hover:bg-slate-50 transition-all uppercase tracking-tighter">預覽完整報表</button>
+                            <button onClick={handleSaveInspection} className="w-full bg-white text-slate-900 py-6 rounded-[2rem] font-black text-xl shadow-xl active:scale-95 uppercase hover:bg-slate-50 transition-all uppercase tracking-tighter">{selectedRecord ? '儲存修改' : '儲存紀錄'}</button>
                         </section>
                     </div>
                 </div>
